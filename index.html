@@ -1,0 +1,1530 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>場勘</title>
+<meta name="theme-color" content="#14171A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="場勘">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>
+:root {
+  --bg: #F4F3EF; --card: #FFFFFF; --fg: #14171A; --muted: #5E6670; --line: #DCDAD3;
+  --accent: #FFD23F; --accent-ink: #14171A; --ok: #2E7D4F; --warn: #B4400F; --rec: #D92D20; --chip: #E9E7E0;
+  --bar: #14171A; --bar-fg: #F4F3EF; --chip-off: #2A2F35; --focus: #14171A;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #101214; --card: #1A1D21; --fg: #EDEBE6; --muted: #9AA3AD; --line: #2C3036;
+    --accent: #FFD23F; --accent-ink: #14171A; --ok: #6FCF97; --warn: #F2994A; --rec: #FF5A4E; --chip: #24282D;
+    --bar: #000000; --bar-fg: #EDEBE6; --chip-off: #2A2F35; --focus: #FFD23F;
+    color-scheme: dark;
+  }
+}
+/* 夜間紅光：夜觀、清晨摸黑用 */
+html.night {
+  --bg: #000; --card: #0B0000; --fg: #E0281C; --muted: #8E1A12; --line: #3A0B07;
+  --accent: #8E1A12; --accent-ink: #000; --ok: #E0281C; --warn: #E0281C; --rec: #E0281C; --chip: #1A0302;
+  --bar: #000; --bar-fg: #E0281C; --chip-off: #1A0302; --focus: #E0281C; color-scheme: dark;
+}
+html.night img, html.night video { filter: grayscale(1) sepia(1) hue-rotate(-50deg) saturate(4) brightness(.55) }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent }
+[hidden] { display: none !important }
+html, body { margin: 0; background: var(--bg); color: var(--fg) }
+body { font: 16px/1.5 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; min-height: 100vh; min-height: 100dvh; overscroll-behavior-y: none }
+button { font: inherit; color: inherit }
+button:disabled { opacity: .4 }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px }
+
+.top { position: sticky; top: 0; z-index: 10; background: var(--bar); color: var(--bar-fg); padding-top: env(safe-area-inset-top) }
+.top-row { display: flex; align-items: center; gap: 4px; padding: 6px 8px 2px calc(12px + env(safe-area-inset-left)) }
+.top-row .proj { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.top-row .proj small { font-weight: 400; opacity: .7; margin-right: 6px }
+.icon-btn { flex: none; min-width: 44px; height: 44px; border: 0; border-radius: 10px; background: transparent; color: inherit; font-size: 22px; line-height: 1; cursor: pointer; position: relative }
+.icon-btn .badge { position: absolute; top: 8px; right: 6px; width: 9px; height: 9px; border-radius: 50%; background: var(--accent) }
+.chips { display: flex; gap: 6px; overflow-x: auto; padding: 4px 12px 10px; scrollbar-width: none }
+.chips::-webkit-scrollbar { display: none }
+.chip { flex: none; border: 0; border-radius: 999px; padding: 8px 14px; min-height: 40px; background: var(--chip-off); color: var(--bar-fg); font-size: 15px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
+.chip[aria-current="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700 }
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid currentColor; opacity: .7 }
+.chip .dot.full { background: #6FCF97; border-color: #6FCF97; opacity: 1 }
+.chip .dot.here { background: currentColor; opacity: 1 }
+.recbar, .unsaved { display: flex; align-items: center; gap: 8px; padding: 6px calc(12px + env(safe-area-inset-right)) 6px calc(12px + env(safe-area-inset-left)); font-size: 14px }
+.recbar { background: var(--rec); color: #fff }
+.recbar .rdot { width: 10px; height: 10px; border-radius: 50%; background: #fff; animation: blink 1s infinite }
+@keyframes blink { 50% { opacity: .2 } }
+@media (prefers-reduced-motion: reduce) { .recbar .rdot { animation: none } }
+.recbar .what { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.recbar button, .unsaved button { border: 1.5px solid currentColor; background: transparent; border-radius: 8px; padding: 4px 12px; min-height: 36px; cursor: pointer; flex: none }
+.unsaved { background: var(--accent); color: var(--accent-ink); flex-wrap: wrap }
+.unsaved span { flex: 1 1 100% }
+
+main { padding: 14px 14px calc(110px + env(safe-area-inset-bottom)); max-width: 720px; margin: 0 auto }
+h1 { font-size: 22px; line-height: 1.3; margin: 2px 0 6px }
+.when { display: grid; gap: 2px; font-size: 14px; color: var(--muted); margin-bottom: 10px }
+.when b { color: var(--fg); font-weight: 600; margin-right: 4px }
+.note-box { font-size: 14px; color: var(--muted); border-left: 3px solid var(--accent); padding: 2px 0 2px 10px; margin: 0 0 12px }
+
+.visit { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 14px }
+.vbtn { border: 1.5px solid var(--line); background: var(--card); border-radius: 12px; padding: 8px 10px; min-height: 58px; text-align: left; cursor: pointer; display: grid }
+.vbtn .k { font-size: 13px; color: var(--muted) }
+.vbtn .v { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums }
+.vbtn .g { font-size: 12px; color: var(--muted) }
+.vbtn.set { border-color: var(--fg) }
+.visit-sum { grid-column: 1 / -1; font-size: 13px; color: var(--muted) }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 12px }
+.item { padding: 10px 12px; border-top: 1px solid var(--line) }
+.item:first-child { border-top: 0 }
+.row { display: grid; grid-template-columns: 34px 1fr; gap: 8px; align-items: start }
+.row input[type=checkbox] { width: 28px; height: 28px; margin: 2px 0 0; accent-color: var(--fg); cursor: pointer }
+.row label { cursor: pointer; min-width: 0; padding-top: 2px }
+.txt { font-size: 16px }
+.hint { display: block; font-size: 13px; color: var(--muted); margin-top: 2px }
+.must { display: inline-block; font-size: 11px; font-weight: 700; background: var(--accent); color: var(--accent-ink); border-radius: 4px; padding: 0 5px; margin-right: 6px; vertical-align: 2px }
+.item.done .txt { color: var(--muted); text-decoration: line-through }
+.acts { display: flex; gap: 6px; margin: 6px 0 0 42px }
+.act { height: 38px; min-width: 52px; border: 1px solid var(--line); border-radius: 19px; background: transparent; font-size: 14px; padding: 0 12px; cursor: pointer; color: var(--fg); position: relative }
+.act.has::after { content: ""; position: absolute; top: 4px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--warn) }
+.act.on { background: var(--rec); border-color: var(--rec); color: #fff }
+.sub-wrap { margin: 8px 0 0 42px }
+.sub-wrap.flush { margin-left: 0 }
+textarea { width: 100%; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px; resize: vertical; min-height: 64px }
+.media { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 0 42px }
+.media.flush { margin-left: 0 }
+.media button { padding: 0; border: 0; border-radius: 8px; overflow: hidden; width: 64px; height: 64px; background: var(--chip); cursor: pointer; font-size: 12px; color: var(--fg) }
+.media img { width: 100%; height: 100%; object-fit: cover; display: block }
+.media .aud { display: grid; place-content: center; text-align: center; line-height: 1.3 }
+.media .aud b { font-size: 18px }
+
+details.more { margin-bottom: 12px }
+details.more > summary { list-style: none; cursor: pointer; padding: 12px 4px; color: var(--muted); font-size: 15px; min-height: 44px }
+details.more > summary::-webkit-details-marker { display: none }
+details.more > summary::before { content: "▸ " }
+details.more[open] > summary::before { content: "▾ " }
+.sec-label { font-size: 13px; color: var(--muted); margin: 18px 4px 6px; font-weight: 600 }
+.add-row { display: flex; gap: 8px; margin-bottom: 12px }
+.add-row input { flex: 1; min-width: 0; font: inherit; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); color: var(--fg) }
+.btn { border: 1.5px solid var(--fg); background: transparent; border-radius: 10px; padding: 8px 14px; min-height: 44px; cursor: pointer; font-size: 15px }
+.btn.primary { background: var(--fg); color: var(--bg) }
+.btn.wide { width: 100% }
+.st-tools { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 8px }
+
+.foot { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--bg); border-top: 1px solid var(--line); padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); display: grid; grid-template-columns: 50px 60px 60px 1fr; gap: 8px }
+.foot .btn { min-height: 52px; font-size: 16px; padding: 0 6px }
+.foot .big { font-size: 22px }
+.foot .big.on { background: var(--rec); border-color: var(--rec); color: #fff }
+.foot .next { background: var(--fg); color: var(--bg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+
+dialog { border: 0; padding: 0; background: var(--card); color: var(--fg); width: min(560px, 100vw); max-width: 100vw; max-height: 92dvh; border-radius: 16px 16px 0 0; margin: auto auto 0 }
+dialog::backdrop { background: rgba(0,0,0,.5) }
+.sheet { padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); display: grid; gap: 10px }
+.sheet h2 { font-size: 18px; margin: 0 }
+.sheet .sub { font-size: 13px; color: var(--muted); margin: -4px 0 0 }
+.sheet ul { margin: 0; padding-left: 20px; font-size: 14px }
+.sheet .facts { display: grid; gap: 4px; font-size: 14px }
+.sheet hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0 }
+.muted { font-size: 13px; color: var(--muted) }
+.viewer img { width: 100%; max-height: 60dvh; object-fit: contain; background: #000; border-radius: 10px; display: block }
+.viewer audio { width: 100% }
+.meta { font-size: 14px; display: grid; gap: 2px }
+.meta a { color: inherit }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap }
+.btn-row .btn { flex: 1 }
+.danger { border-color: var(--warn); color: var(--warn) }
+
+/* 指南針 */
+.dial-wrap { display: grid; place-items: center; padding: 6px 0 }
+.dial { width: min(260px, 70vw); height: auto; display: block }
+.hdg-big { text-align: center; font-size: 34px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.1 }
+.hdg-sub { text-align: center; font-size: 13px; color: var(--muted) }
+.marks-list { font-size: 14px; display: grid; gap: 2px }
+
+/* 內建相機 */
+.cam { position: fixed; inset: 0; z-index: 100; background: #000; color: #fff; display: flex; flex-direction: column; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left) }
+.cam button { color: #fff }
+.cam-top { display: flex; align-items: center; gap: 8px; padding: 6px 10px; flex: none }
+.cam-top .hdg { flex: 1; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; font-size: 16px }
+.cam-pill { border: 1.5px solid rgba(255,255,255,.7); background: rgba(0,0,0,.4); border-radius: 999px; padding: 6px 14px; min-height: 40px; cursor: pointer; font-size: 15px }
+.cam-pill.y { background: #FFD23F; color: #14171A !important; border-color: #FFD23F; font-weight: 700 }
+.cam-view { position: relative; flex: 1; overflow: hidden; min-height: 0 }
+.cam-view video { position: absolute; background: #111 }
+.cam-frame { position: absolute; border: 2px solid #FFD23F; box-shadow: 0 0 0 200vmax rgba(0,0,0,.6); pointer-events: none }
+.cam-frame .lab { position: absolute; left: 0; bottom: -26px; font-size: 13px; color: #FFD23F; white-space: nowrap; font-weight: 600 }
+.cam-frame .third { position: absolute; inset: 0; background:
+  linear-gradient(to right, transparent calc(33.33% - .5px), rgba(255,255,255,.25) calc(33.33% - .5px), rgba(255,255,255,.25) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.25) calc(66.66% - .5px), rgba(255,255,255,.25) calc(66.66% + .5px), transparent calc(66.66% + .5px)),
+  linear-gradient(to bottom, transparent calc(33.33% - .5px), rgba(255,255,255,.25) calc(33.33% - .5px), rgba(255,255,255,.25) calc(33.33% + .5px), transparent calc(33.33% + .5px), transparent calc(66.66% - .5px), rgba(255,255,255,.25) calc(66.66% - .5px), rgba(255,255,255,.25) calc(66.66% + .5px), transparent calc(66.66% + .5px)) }
+.sunmark { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed #FFD23F }
+.sunmark span { position: absolute; left: 4px; font-size: 12px; background: rgba(0,0,0,.6); color: #FFD23F; padding: 1px 5px; border-radius: 4px; white-space: nowrap }
+.sundot { position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; background: #FFD23F; opacity: .75 }
+.sundot.hr { width: 11px; height: 11px; margin: -5.5px 0 0 -5.5px; opacity: 1 }
+.sundot.sel { width: 26px; height: 26px; margin: -13px 0 0 -13px; background: radial-gradient(#FFF6C2, #FFD23F 60%, rgba(255,210,63,.2)); opacity: 1; box-shadow: 0 0 12px #FFD23F }
+.sundot span { position: absolute; left: 14px; top: -6px; font-size: 12px; color: #FFD23F; text-shadow: 0 0 3px #000; white-space: nowrap }
+.cam-msg { position: absolute; left: 16px; right: 16px; top: 40%; text-align: center; font-size: 15px; background: rgba(0,0,0,.7); padding: 12px; border-radius: 10px }
+.cam-flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .25s }
+.cam-flash.on { opacity: .7; transition: none }
+.cam-sun { font-size: 13px; padding: 4px 12px; min-height: 22px; text-align: center; color: #FFD23F; flex: none }
+.cam-focals { display: flex; gap: 6px; overflow-x: auto; padding: 4px 10px; scrollbar-width: none; flex: none }
+.cam-focals::-webkit-scrollbar { display: none }
+.cam-focals button { flex: none; border: 0; border-radius: 999px; background: rgba(255,255,255,.14); min-width: 52px; height: 40px; font-size: 15px; font-variant-numeric: tabular-nums; cursor: pointer }
+.cam-focals button[aria-pressed="true"] { background: #FFD23F; color: #14171A; font-weight: 700 }
+.cam-bottom { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; padding: 8px 12px 10px; flex: none }
+.cam-bottom .l { justify-self: start } .cam-bottom .r { justify-self: end }
+.shutter { width: 74px; height: 74px; border-radius: 50%; border: 5px solid #fff; background: #fff; box-shadow: inset 0 0 0 4px #000; cursor: pointer }
+.shutter:active { background: #ddd }
+.cam-target { font-size: 12px; color: rgba(255,255,255,.7); text-align: center; padding: 0 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none }
+.cam-set { position: absolute; inset: auto 0 0 0; z-index: 2; background: #1A1D21; color: #EDEBE6; border-radius: 16px 16px 0 0; padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); display: grid; gap: 10px; max-height: 80%; overflow: auto }
+.cam-set h3 { margin: 0; font-size: 16px }
+.cam-set .opts { display: flex; gap: 6px; flex-wrap: wrap }
+.cam-set .opts button { border: 1.5px solid #555; background: transparent; border-radius: 10px; padding: 6px 12px; min-height: 40px; cursor: pointer; font-size: 14px }
+.cam-set .opts button[aria-pressed="true"] { border-color: #FFD23F; color: #FFD23F; font-weight: 700 }
+.cam-set .note { font-size: 12px; color: #9AA3AD }
+.cam-set input[type=range] { width: 100% }
+.cam-warn { position: absolute; left: 10px; right: 10px; top: 8px; z-index: 1; background: #B42318; color: #fff; font-size: 14px; font-weight: 600; padding: 8px 10px; border-radius: 8px; text-align: center }
+#cam-marks.unsure { opacity: .45 }
+.cam-calib { position: absolute; right: 10px; top: 8px; z-index: 1; font-size: 13px; min-height: 36px; padding: 4px 10px }
+/* 主畫面橫拿時避開瀏海、圓角 */
+.top-row { padding-right: calc(8px + env(safe-area-inset-right)) }
+.chips { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)) }
+main { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)) }
+.foot { padding-left: calc(12px + env(safe-area-inset-left)); padding-right: calc(12px + env(safe-area-inset-right)) }
+.sheet { padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)) }
+/* 橫拿：取景放左邊、按鈕放右邊一欄 */
+@media (orientation: landscape) and (max-height: 560px) {
+  .cam { display: grid; grid-template-columns: minmax(0, 1fr) 236px; grid-template-rows: auto auto auto auto minmax(0, 1fr) auto; align-items: start; overflow-y: auto }
+  .cam > * { grid-column: 2; min-width: 0 }
+  .cam > .cam-view { grid-column: 1; grid-row: 1 / -1; height: 100%; align-self: stretch }
+  .cam-top { flex-wrap: wrap; padding: 6px 8px 2px }
+  .cam-top .hdg { order: -1; flex-basis: 100%; font-size: 15px }
+  .cam-top .cam-pill { flex: 1 }
+  .cam-sun { font-size: 12px; line-height: 1.35; padding: 2px 8px; text-align: left; min-height: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+  .cam-focals { padding: 4px 8px }
+  .cam-focals button { height: 36px }
+  .cam-bottom { grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px 8px; align-self: end }
+  .cam-bottom .shutter { grid-column: 1 / -1; grid-row: 1; justify-self: center; width: 60px; height: 60px; border-width: 4px }
+  .cam-bottom .cam-pill { min-height: 34px }
+  .cam-bottom .cam-pill { font-size: 13px; padding: 4px 8px; justify-self: stretch }
+  .cam-target { padding: 0 8px 4px }
+}
+html.night .cam, html.night .cam button, html.night .cam-sun, html.night .cam-set { color: #FF6B5B !important }
+html.night .cam-frame { border-color: #C0392B }
+html.night .cam-frame .lab, html.night .sundot span, html.night .sunmark span { color: #FF6B5B }
+html.night .sundot, html.night .cam-pill.y, html.night .cam-focals button[aria-pressed="true"] { background: #8E1B12 !important; border-color: #8E1B12; color: #FFB3A8 !important }
+html.night .sunmark { border-left-color: #C0392B }
+html.night .cam-flash { background: #400 }
+html.night .sundot.sel { background: #8E1B12 !important; box-shadow: 0 0 10px #5A0E08 }
+html.night .cam-warn { background: #5A0E08; color: #FFB3A8 !important }
+html.night .shutter { background: #5A0E08; border-color: #8E1B12; box-shadow: inset 0 0 0 4px #000 }
+
+.toast { position: fixed; left: 50%; bottom: calc(88px + env(safe-area-inset-bottom)); transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 200; max-width: calc(100vw - 32px); opacity: 0; transition: opacity .2s; pointer-events: none }
+.toast.on { opacity: 1 }
+@media (prefers-reduced-motion: reduce) { .toast, .cam-flash { transition: none } }
+
+.welcome { padding: calc(28px + env(safe-area-inset-top)) 18px 40px; max-width: 560px; margin: 0 auto; display: grid; gap: 14px }
+.welcome h1 { font-size: 28px }
+.welcome ol { padding-left: 20px; margin: 0; color: var(--muted) }
+.welcome textarea { min-height: 120px; font-size: 13px; font-family: ui-monospace, Menlo, monospace }
+</style>
+</head>
+<body>
+
+<div id="welcome" class="welcome" hidden>
+  <h1>場勘</h1>
+  <p>一站一頁的場勘工具。勾選、筆記、照片、錄音、到站時間和位置都存在這支手機裡，沒有訊號也能用。</p>
+  <ol>
+    <li>在 Safari 按分享 →「加入主畫面」，之後都從主畫面打開</li>
+    <li>從主畫面打開後，匯入專案檔（.json）</li>
+  </ol>
+  <button class="btn primary wide" id="w-import" type="button">匯入專案檔</button>
+  <details>
+    <summary class="muted">或貼上專案檔內容</summary>
+    <textarea id="w-paste" placeholder="把 .json 的內容貼在這裡"></textarea>
+    <button class="btn wide" id="w-paste-go" type="button" style="margin-top:8px">用貼上的內容建立專案</button>
+  </details>
+  <p class="muted" id="w-ver"></p>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="top-row">
+      <div class="proj" id="proj"></div>
+      <button class="icon-btn" id="b-compass" type="button" aria-label="指南針">🧭</button>
+      <button class="icon-btn" id="b-menu" type="button" aria-label="選單">⋯<span class="badge" id="menu-badge" hidden></span></button>
+    </div>
+    <div class="recbar" id="recbar" hidden><span class="rdot"></span><b id="rec-time">0:00</b><span class="what" id="rec-what"></span><button id="rec-stop" type="button">停止</button></div>
+    <div class="unsaved" id="unsaved" hidden><span id="unsaved-msg"></span><button id="uns-retry" type="button">再試一次</button><button id="uns-share" type="button">存到相簿／檔案</button></div>
+    <nav class="chips" id="chips" aria-label="站別"></nav>
+  </header>
+  <main id="main"></main>
+  <div class="foot">
+    <button class="btn" id="b-prev" type="button" aria-label="上一站">←</button>
+    <button class="btn big" id="b-cam" type="button" aria-label="拍這一站">📷</button>
+    <button class="btn big" id="b-rec" type="button" aria-label="錄音">🎙</button>
+    <button class="btn next" id="b-next" type="button"></button>
+  </div>
+</div>
+
+<div class="cam" id="cam" hidden>
+  <div class="cam-top">
+    <button class="cam-pill y" id="cam-done" type="button">完成</button>
+    <div class="hdg" id="cam-hdg">朝向 —</div>
+    <button class="cam-pill" id="cam-setbtn" type="button">設定</button>
+  </div>
+  <div class="cam-view" id="cam-view">
+    <video id="cam-video" playsinline muted autoplay></video>
+    <div class="cam-frame" id="cam-frame"><div class="third"></div><div id="cam-marks"></div><div class="lab" id="cam-lab"></div></div>
+    <div class="cam-msg" id="cam-msg" hidden></div>
+    <div class="cam-warn" id="cam-warn" hidden></div>
+    <button class="cam-pill cam-calib" id="cam-calib" type="button" hidden>☀ 對準太陽→校正</button>
+    <div class="cam-flash" id="cam-flash"></div>
+    <div class="cam-set" id="cam-set" hidden></div>
+  </div>
+  <div class="cam-sun" id="cam-sun"></div>
+  <div class="cam-sun" id="cam-path" style="color:rgba(255,255,255,.7)"></div>
+  <div class="cam-focals" id="cam-focals"></div>
+  <div class="cam-bottom">
+    <button class="cam-pill l" id="cam-fmt" type="button"></button>
+    <button class="shutter" id="cam-shutter" type="button" aria-label="快門"></button>
+    <button class="cam-pill r" id="cam-sys" type="button">系統相機</button>
+  </div>
+  <div class="cam-target" id="cam-target"></div>
+</div>
+
+<dialog id="menu"><div class="sheet" id="menu-body"></div></dialog>
+<dialog id="viewer"><div class="sheet viewer" id="viewer-body"></div></dialog>
+<dialog id="compass"><div class="sheet" id="compass-body"></div></dialog>
+<dialog id="export"><div class="sheet" id="export-body"></div></dialog>
+<input type="file" id="f-camera" accept="image/*" capture="environment" hidden>
+<input type="file" id="f-import" accept=".json,application/json,text/plain" hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+const APP_VERSION = "1.2.2";
+const TZ = "Asia/Taipei";
+const MAX_EDGE = 2560, THUMB_EDGE = 320, PART_BYTES = 100e6, GPS_TIMEOUT = 45000;
+
+/* ================= IndexedDB（斷線會自動重連再試一次） ================= */
+let idb = null;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const r = indexedDB.open("scout-tool", 1);
+    r.onupgradeneeded = () => {
+      const d = r.result;
+      if (!d.objectStoreNames.contains("projects")) d.createObjectStore("projects", { keyPath: "id" });
+      if (!d.objectStoreNames.contains("logs")) d.createObjectStore("logs", { keyPath: "projectId" });
+      if (!d.objectStoreNames.contains("photos")) d.createObjectStore("photos", { keyPath: "id" }).createIndex("project", "projectId");
+      if (!d.objectStoreNames.contains("blobs")) d.createObjectStore("blobs");
+    };
+    r.onsuccess = () => { const d = r.result; d.onclose = () => { if (idb === d) idb = null }; d.onversionchange = () => { d.close(); if (idb === d) idb = null }; resolve(d) };
+    r.onerror = () => reject(r.error);
+    r.onblocked = () => reject(new Error("blocked"));
+  });
+}
+function txOnce(stores, mode, fn) {
+  return new Promise((resolve, reject) => {
+    let t;
+    try { t = idb.transaction(stores, mode) } catch (e) { reject(e); return }
+    let out;
+    try { out = fn(t) } catch (e) { try { t.abort() } catch (_) {} reject(e); return }
+    t.oncomplete = () => resolve(out && typeof out === "object" && "result" in out ? out.result : out);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error || new Error("abort"));
+    if (mode === "readwrite" && typeof t.commit === "function") { try { t.commit() } catch (_) {} }
+  });
+}
+const isConnErr = e => !!e && (e.name === "UnknownError" || e.name === "InvalidStateError" || /lost|clos/i.test(e.message || ""));
+async function run(stores, mode, fn) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      if (!idb) idb = await openDB();
+      return await txOnce(stores, mode, fn);
+    } catch (e) {
+      if (attempt === 0 && isConnErr(e)) { try { idb && idb.close() } catch (_) {} idb = null; continue }
+      throw e;
+    }
+  }
+}
+const dbGet = (s, k) => run([s], "readonly", t => t.objectStore(s).get(k));
+const dbAll = s => run([s], "readonly", t => t.objectStore(s).getAll());
+const dbPut = (s, v, k) => run([s], "readwrite", t => { k === undefined ? t.objectStore(s).put(v) : t.objectStore(s).put(v, k) });
+const dbByIndex = (s, i, v) => run([s], "readonly", t => t.objectStore(s).index(i).getAll(v));
+
+/* ================= 狀態 ================= */
+let projects = [], project = null, log = null, media = [];
+let idx = 0, openNotes = {}, pendingSys = null, unsaved = [];
+let compassWanted = false, compassOn = false, heading = null, lastActivity = Date.now();
+const thumbURLs = new Map();
+
+function uiKey() { return "scout-ui:" + project.id }
+function readUI() { try { return JSON.parse(localStorage.getItem(uiKey()) || "{}") } catch (e) { return {} } }
+function writeUI(u) { try { localStorage.setItem(uiKey(), JSON.stringify(u)) } catch (e) {} }
+function lsGet(k) { try { return localStorage.getItem(k) } catch (e) { return null } }
+function lsSet(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }
+function emptyLog(pid) { return { projectId: pid, items: {}, visits: {}, custom: {}, stationNotes: {}, lastExport: 0, updatedAt: 0 } }
+const photos = () => media.filter(m => m.kind !== "audio");
+const audios = () => media.filter(m => m.kind === "audio");
+
+/* ---- 紀錄寫入：排隊寫進 IndexedDB；失敗會自動重試 ---- */
+let saving = Promise.resolve(), saveTimer = null, retryTimer = null, dirty = false, saveFailNotified = false;
+function saveLog(now) { dirty = true; clearTimeout(saveTimer); if (now) flushLog(); else saveTimer = setTimeout(flushLog, 400) }
+function flushLog() {
+  clearTimeout(saveTimer);
+  if (!dirty || !log) return saving;
+  dirty = false;
+  log.updatedAt = Date.now();
+  const snapshot = JSON.parse(JSON.stringify(log));
+  saving = saving.then(() => dbPut("logs", snapshot)).then(() => { saveFailNotified = false }).catch(e => {
+    dirty = true;
+    if (!saveFailNotified) { saveFailNotified = true; toast("存檔失敗，會自動再試：" + (e && e.message || e), 4000) }
+    clearTimeout(retryTimer); retryTimer = setTimeout(flushLog, 3000);
+  });
+  return saving;
+}
+
+/* ================= 小工具 ================= */
+const $ = id => document.getElementById(id);
+function el(tag, attrs, ...kids) {
+  const n = document.createElement(tag);
+  if (attrs) for (const [k, v] of Object.entries(attrs)) {
+    if (v == null || v === false) continue;
+    if (k === "class") n.className = v;
+    else if (k === "text") n.textContent = v;
+    else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v === true ? "" : v);
+  }
+  for (const c of kids.flat()) if (c != null && c !== false) n.append(c);
+  return n;
+}
+let toastTimer = null;
+function toast(msg, ms) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("on"), ms || 2600) }
+const fmtTime = ms => new Date(ms).toLocaleTimeString("zh-TW", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
+const fmtDateTime = ms => new Date(ms).toLocaleString("zh-TW", { timeZone: TZ, month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+function fmtDur(ms) { if (!(ms >= 0)) return ""; const m = Math.round(ms / 60000); return m < 60 ? m + " 分" : Math.floor(m / 60) + " 小時 " + (m % 60) + " 分" }
+const fmtSec = ms => { const s = Math.round(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") };
+const norm = d => ((d % 360) + 360) % 360;
+const delta = (a, b) => ((a - b + 540) % 360) - 180;   // a 在 b 的右邊為正
+function dirName(deg) { const n = ["北", "北北東", "東北", "東北東", "東", "東南東", "東南", "南南東", "南", "南南西", "西南", "西南西", "西", "西北西", "西北", "北北西"]; return n[Math.round(norm(deg) / 22.5) % 16] }
+const mapURL = g => "https://maps.google.com/?q=" + g.lat + "," + g.lon;
+function stamp(ms) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(new Date(ms)).map(x => [x.type, x.value]));
+  const h = p.hour === "24" ? "00" : p.hour;
+  return { date: p.year + p.month + p.day, time: h + p.minute + p.second, hm: h + p.minute };
+}
+function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6) }
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
+
+/* ================= 太陽位置（NOAA 簡化公式，誤差約 1°） ================= */
+function sunPos(ms, lat, lon) {
+  const rad = Math.PI / 180, d = ms / 86400000 + 2440587.5 - 2451545.0;
+  const g = (357.529 + 0.98560028 * d) * rad, q = 280.459 + 0.98564736 * d;
+  const L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * rad, e = (23.439 - 0.00000036 * d) * rad;
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = ((18.697374558 + 24.06570982441908 * d) % 24 + 24) % 24;
+  const ha = (gmst * 15 + lon) * rad - ra, la = lat * rad;
+  const alt = Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(ha));
+  const az = Math.atan2(-Math.sin(ha), Math.tan(dec) * Math.cos(la) - Math.sin(la) * Math.cos(ha));
+  return { az: norm(az / rad), alt: alt / rad };
+}
+/* ---- 一整天的太陽：日出日落、金色時刻、每 5 分鐘的位置（時間一律台北） ---- */
+const tpeMs = (date, min) => Date.parse(date + "T00:00:00+08:00") + min * 60000;
+const fmtMin = m => { if (m == null) return "—"; m = Math.round(m); return String(Math.floor(m / 60) % 24).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0") };
+function todayTPE() { const s = stamp(Date.now()).date; return s.slice(0, 4) + "-" + s.slice(4, 6) + "-" + s.slice(6, 8) }
+function nowMinTPE() { const s = stamp(Date.now()).time; return +s.slice(0, 2) * 60 + +s.slice(2, 4) }
+const dayCache = new Map();
+function sunDay(date, lat, lon) {
+  const key = date + "|" + lat.toFixed(3) + "|" + lon.toFixed(3);
+  if (dayCache.has(key)) return dayCache.get(key);
+  const pts = [];
+  for (let m = 0; m <= 1440; m += 5) { const p = sunPos(tpeMs(date, m), lat, lon); pts.push({ m, az: p.az, alt: p.alt }) }
+  const cross = (level, up) => {
+    for (let i = 1; i < pts.length; i++) {
+      const a = pts[i - 1], b = pts[i];
+      if (up ? (a.alt < level && b.alt >= level) : (a.alt >= level && b.alt < level)) {
+        const f = (level - a.alt) / (b.alt - a.alt), m = a.m + f * (b.m - a.m);
+        return { m, az: sunPos(tpeMs(date, m), lat, lon).az };
+      }
+    }
+    return null;
+  };
+  const noon = pts.reduce((x, y) => y.alt > x.alt ? y : x);
+  const d = { pts, rise: cross(-0.833, true), set: cross(-0.833, false), noon,
+    goldAM: [cross(-4, true), cross(6, true)], goldPM: [cross(6, false), cross(-4, false)],
+    blueAM: [cross(-6, true), cross(-4, true)], bluePM: [cross(-4, false), cross(-6, false)] };
+  dayCache.set(key, d);
+  return d;
+}
+// 選中的日期和時間（指南針頁、相機共用）
+function sunSelDefault() { const sd = (project && project.sunDates) || []; return { date: sd.length ? sd[0].date : todayTPE(), min: 390 } }
+function sunSel() { let s = null; try { s = JSON.parse(lsGet("scout-sun-" + (project && project.id)) || "null") } catch (e) {} return s && /^\d{4}-\d\d-\d\d$/.test(s.date) ? s : sunSelDefault() }
+function setSunSel(s) { lsSet("scout-sun-" + project.id, JSON.stringify(s)) }
+
+let lastFix = null;   // 最近一次 GPS
+function here() { return lastFix || (project && project.location) || null }
+function sunMarks(now) {
+  const out = (project.sun || []).map(s => ({ label: s.label, az: Number(s.az) })).filter(s => isFinite(s.az));
+  const h = here();
+  if (h) { const p = sunPos(now || Date.now(), h.lat, h.lon); if (p.alt > -3) out.unshift({ label: "現在的太陽", az: p.az, now: true, alt: p.alt }) }
+  return out;
+}
+
+/* ================= 專案檔 ================= */
+function normalizeProject(p) {
+  if (!p || typeof p !== "object") throw new Error("不是專案檔");
+  if (!p.id || typeof p.id !== "string") throw new Error("缺少 id");
+  if (!Array.isArray(p.stations) || !p.stations.length) throw new Error("沒有任何站點");
+  const seen = new Set();
+  const stations = p.stations.map((s, i) => {
+    if (!s.id) throw new Error("第 " + (i + 1) + " 站缺少 id");
+    if (seen.has("s:" + s.id)) throw new Error("站點 id 重複：" + s.id);
+    seen.add("s:" + s.id);
+    const items = (s.items || []).map(it => {
+      const o = Array.isArray(it) ? { id: it[0], text: it[1], hint: it[2], must: it[3] } : it;
+      if (!o.id || !o.text) throw new Error(s.id + " 有題目缺少 id 或內容");
+      if (seen.has("i:" + o.id)) throw new Error("題目 id 重複：" + o.id);
+      seen.add("i:" + o.id);
+      return { id: String(o.id), text: String(o.text), hint: o.hint ? String(o.hint) : "", must: !!o.must };
+    });
+    const start = s.start ? Date.parse(s.start) : NaN;
+    return { id: String(s.id), short: String(s.short || s.title || s.id), title: String(s.title || s.short || s.id), scout: s.scout || "", shoot: s.shoot || "", note: s.note || "", start: isNaN(start) ? null : start, items };
+  });
+  const loc = p.location && isFinite(p.location.lat) && isFinite(p.location.lon) ? { lat: +p.location.lat, lon: +p.location.lon } : null;
+  return { schema: 1, id: p.id, code: p.code || "", name: String(p.name || p.id), subtitle: p.subtitle || "", facts: Array.isArray(p.facts) ? p.facts.map(String) : [], guide: Array.isArray(p.guide) ? p.guide.map(String) : [],
+    location: loc, declination: isFinite(p.declination) ? +p.declination : 0, sun: Array.isArray(p.sun) ? p.sun : [],
+    sunDates: Array.isArray(p.sunDates) ? p.sunDates.filter(x => x && /^\d{4}-\d\d-\d\d$/.test(x.date)).map(x => ({ date: x.date, label: String(x.label || x.date) })) : [], stations, importedAt: Date.now() };
+}
+async function importProjectText(text) {
+  let p;
+  try { p = normalizeProject(JSON.parse(text)) } catch (e) { toast("匯入失敗：" + e.message, 4000); return }
+  try {
+    await flushLog();
+    const existed = projects.some(x => x.id === p.id);
+    await dbPut("projects", p);
+    if (!(await dbGet("logs", p.id))) await dbPut("logs", emptyLog(p.id));
+    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist() } catch (e) {}
+    lsSet("scout-current", p.id);
+    await loadAll();
+    toast(existed ? "專案已更新，原本的紀錄都還在" : "已匯入「" + p.name + "」");
+  } catch (e) { toast("匯入失敗：" + (e && e.message || e), 4000) }
+}
+
+/* ================= 載入 ================= */
+async function loadAll() {
+  projects = (await dbAll("projects")).sort((a, b) => b.importedAt - a.importedAt);
+  if (!projects.length) { showWelcome(); return }
+  const cur = lsGet("scout-current");
+  project = projects.find(p => p.id === cur) || projects[0];
+  lsSet("scout-current", project.id);
+  log = Object.assign(emptyLog(project.id), (await dbGet("logs", project.id)) || {});
+  // App 被關掉時還在定位的，改成「沒抓到位置」
+  for (const v of Object.values(log.visits)) for (const k of ["arrive", "leave"]) if (v[k] && v[k].gpsPending) delete v[k].gpsPending;
+  for (const u of thumbURLs.values()) URL.revokeObjectURL(u);
+  thumbURLs.clear();
+  media = (await dbByIndex("photos", "project", project.id)).sort((a, b) => a.t - b.t);
+  $("welcome").hidden = true; $("app").hidden = false;
+  const u = readUI();
+  idx = Math.min(Math.max(0, Number(u.idx) || 0), project.stations.length - 1);
+  const j = autoJumpTarget(Date.now(), true);
+  if (j >= 0) { idx = j; u.idx = j; writeUI(u); setTimeout(() => toast("依時間跳到：" + project.stations[j].short), 300) }
+  renderAll();
+}
+function showWelcome() { $("app").hidden = true; $("welcome").hidden = false; $("w-ver").textContent = "版本 " + APP_VERSION }
+
+/* ---- 依時間自動跳站：只在時間表剛換站的那一次、只往後跳、人還在這站或正在操作就不跳 ---- */
+function scheduledIndex(now) {
+  const timed = project.stations.map((s, i) => [s.start, i]).filter(x => x[0]);
+  if (!timed.length) return -1;
+  const last = Math.max(...timed.map(x => x[0]));
+  if (now < timed[0][0] || now > last + 6 * 3600e3) return -1;
+  let pick = -1;
+  for (const [t, i] of timed) if (t <= now) pick = i;
+  return pick;
+}
+function busy() {
+  if (camOpen || rec || document.querySelector("dialog[open]")) return true;
+  const a = document.activeElement;
+  if (a && (a.tagName === "TEXTAREA" || a.tagName === "INPUT")) return true;
+  const add = $("main").querySelector(".add-row input");
+  return !!(add && add.value.trim());
+}
+function autoJumpTarget(now, atLaunch) {
+  const s = scheduledIndex(now);
+  if (s < 0) return -1;
+  const u = readUI();
+  if (u.schedSeen === s) return -1;                 // 這個時段已經處理過
+  u.schedSeen = s; writeUI(u);
+  const cur = project.stations[idx];
+  if (cur.start && s <= idx) return -1;             // 不往回跳（出發前、問分署這種頁例外）
+  const v = log.visits[cur.id] || {};
+  if (v.arrive && !v.leave) return -1;              // 人還在這站
+  if (!atLaunch && (busy() || now - lastActivity < 10 * 60e3)) return -1;
+  return s;
+}
+function goTo(i) {
+  flushLog();
+  idx = Math.min(Math.max(0, i), project.stations.length - 1);
+  const u = readUI(); u.idx = idx; writeUI(u);
+  openNotes = {};
+  renderAll();
+  window.scrollTo(0, 0);
+}
+
+/* ================= 畫面 ================= */
+const station = () => project.stations[idx];
+function itemsOf(s) { return s.items.concat((log.custom[s.id] || []).map(c => ({ id: c.id, text: c.text, hint: "", must: false, custom: true }))) }
+function isDone(id) { return !!(log.items[id] && log.items[id].done) }
+function mustLeft(s) { return s.items.filter(i => i.must && !isDone(i.id)).length }
+function renderAll() { renderTop(); renderStation(); renderFoot() }
+
+function renderTop() {
+  $("proj").replaceChildren(project.code ? el("small", { text: project.code }) : "", project.name);
+  const chips = $("chips"); chips.replaceChildren();
+  project.stations.forEach((s, i) => {
+    const v = log.visits[s.id] || {};
+    const dot = el("span", { class: "dot" + (mustLeft(s) === 0 ? " full" : v.arrive && !v.leave ? " here" : "") });
+    chips.append(el("button", { class: "chip", type: "button", "aria-current": i === idx ? "true" : "false", onclick: () => goTo(i) }, dot, s.short));
+  });
+  const cur = chips.children[idx];
+  if (cur) requestAnimationFrame(() => cur.scrollIntoView({ inline: "center", block: "nearest" }));
+  $("menu-badge").hidden = !needBackup();
+}
+function renderFoot() {
+  const st = project.stations;
+  $("b-prev").disabled = idx === 0;
+  const nb = $("b-next");
+  nb.textContent = idx < st.length - 1 ? "下一站 " + st[idx + 1].short + " →" : "最後一站";
+  nb.disabled = idx >= st.length - 1;
+  $("b-rec").classList.toggle("on", !!rec);
+  $("b-rec").textContent = rec ? "■" : "🎙";
+}
+function renderStation() {
+  const s = station(), m = $("main"); m.replaceChildren();
+  m.append(el("h1", { text: s.title }));
+  const w = el("div", { class: "when" });
+  if (s.scout) w.append(el("div", {}, el("b", { text: "場勘" }), s.scout));
+  if (s.shoot) w.append(el("div", {}, el("b", { text: "正式" }), s.shoot));
+  if (w.children.length) m.append(w);
+  if (s.note) m.append(el("p", { class: "note-box", text: s.note }));
+  if (s.start || log.visits[s.id]) m.append(renderVisit(s));
+
+  const all = itemsOf(s), must = all.filter(i => i.must), rest = all.filter(i => !i.must);
+  if (must.length) m.append(el("div", { class: "card" }, must.map(renderItem)));
+  if (rest.length) {
+    const d = el("details", { class: "more" }, el("summary", { text: (must.length ? "有空再看" : "題目") + "（" + rest.filter(i => !isDone(i.id)).length + "／" + rest.length + "）" }), el("div", { class: "card" }, rest.map(renderItem)));
+    const u = readUI(); if ((u.openMore || {})[s.id] || !must.length) d.open = true;
+    d.addEventListener("toggle", () => { const u2 = readUI(); u2.openMore = Object.assign(u2.openMore || {}, { [s.id]: d.open }); writeUI(u2) });
+    m.append(d);
+  }
+  const inp = el("input", { type: "text", placeholder: "現場想到的題目…", maxlength: "200", enterkeyhint: "done" });
+  const add = () => {
+    const t = inp.value.trim(); if (!t) return;
+    (log.custom[s.id] = log.custom[s.id] || []).push({ id: uid("c-"), text: t, createdAt: Date.now() });
+    saveLog(true); inp.value = ""; renderStation(); toast("已加到「有空再看」");
+  };
+  inp.addEventListener("keydown", e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); add() } });
+  m.append(el("div", { class: "sec-label", text: "這一站" }));
+  m.append(el("div", { class: "add-row" }, inp, el("button", { class: "btn", type: "button", onclick: add, text: "加題目" })));
+  m.append(el("div", { class: "st-tools" },
+    el("button", { class: "btn", type: "button", onclick: () => { openNotes["st:" + s.id] = !openNotes["st:" + s.id]; renderStation() }, text: "✎ 這站筆記" })));
+  if (openNotes["st:" + s.id] || log.stationNotes[s.id]) m.append(noteBox(() => log.stationNotes[s.id] || "", v => { log.stationNotes[s.id] = v }, "這一站的其他觀察", true));
+  const sm = media.filter(p => p.stationId === s.id && !p.itemId);
+  if (sm.length) m.append(mediaRow(sm, true));
+}
+
+function renderVisit(s) {
+  const v = log.visits[s.id] || {};
+  const box = el("div", { class: "visit", id: "visit-box" });
+  const mk = (key, label) => {
+    const r = v[key];
+    return el("button", { class: "vbtn" + (r ? " set" : ""), type: "button", onclick: () => markVisit(s.id, key) },
+      el("span", { class: "k", text: label }),
+      el("span", { class: "v", text: r ? fmtTime(r.t) : "按一下記時間" }),
+      el("span", { class: "g", text: r ? (r.gps ? "位置 ±" + r.gps.acc + " m" : r.gpsPending ? "定位中…" : "沒抓到位置") : "" }));
+  };
+  box.append(mk("arrive", "到了"), mk("leave", "離開"));
+  const sum = visitSummary(s);
+  if (sum) box.append(el("div", { class: "visit-sum", text: sum }));
+  return box;
+}
+function visitSummary(s) {
+  const v = log.visits[s.id] || {}, out = [];
+  if (v.arrive && v.leave && v.leave.t >= v.arrive.t) out.push("停留 " + fmtDur(v.leave.t - v.arrive.t));
+  const prev = prevLeave(s);
+  if (v.arrive && prev) out.push("從「" + prev.short + "」過來 " + fmtDur(v.arrive.t - prev.t));
+  return out.join("｜");
+}
+function prevLeave(s) {
+  const a = (log.visits[s.id] || {}).arrive; if (!a) return null;
+  let best = null;
+  for (const o of project.stations) {
+    const l = (log.visits[o.id] || {}).leave;
+    if (o.id !== s.id && l && l.t <= a.t && (!best || l.t > best.t)) best = { t: l.t, short: o.short };
+  }
+  return best;
+}
+
+function renderItem(it) {
+  const done = isDone(it.id), rec0 = log.items[it.id] || {};
+  const cb = el("input", { type: "checkbox", id: "cb-" + it.id });
+  cb.checked = done;
+  cb.addEventListener("change", () => {
+    log.items[it.id] = Object.assign(log.items[it.id] || {}, { done: cb.checked, doneAt: Date.now() });
+    saveLog(true); wrap.classList.toggle("done", cb.checked); renderTop();
+  });
+  const lab = el("label", { for: "cb-" + it.id }, el("span", { class: "txt" }, it.must ? el("span", { class: "must", text: "必" }) : "", it.text), it.hint ? el("span", { class: "hint", text: it.hint }) : "");
+  const recOn = rec && rec.target.itemId === it.id;
+  const noteBtn = el("button", { class: "act" + (rec0.note ? " has" : ""), type: "button", text: "✎ 筆記", onclick: () => { openNotes[it.id] = !openNotes[it.id]; const r = renderItem(it); wrap.replaceWith(r); const ta = r.querySelector("textarea"); if (ta) ta.focus() } });
+  const wrap = el("div", { class: "item" + (done ? " done" : "") },
+    el("div", { class: "row" }, cb, lab),
+    el("div", { class: "acts" },
+      el("button", { class: "act", type: "button", text: "📷 拍照", onclick: () => openCamera({ sid: station().id, itemId: it.id }) }),
+      el("button", { class: "act" + (recOn ? " on" : ""), type: "button", text: recOn ? "■ 停止" : "🎙 錄音", onclick: () => toggleRec({ sid: station().id, itemId: it.id }) }),
+      noteBtn));
+  if (openNotes[it.id] || rec0.note) wrap.append(noteBox(() => (log.items[it.id] || {}).note || "", v => { log.items[it.id] = Object.assign(log.items[it.id] || {}, { note: v, noteAt: Date.now() }); noteBtn.classList.toggle("has", !!v) }, "筆記"));
+  const im = media.filter(p => p.itemId === it.id);
+  if (im.length) wrap.append(mediaRow(im));
+  if (it.custom) wrap.append(el("div", { class: "sub-wrap" }, el("button", { class: "btn danger", type: "button", text: "刪掉這題", onclick: () => removeCustom(it) })));
+  return wrap;
+}
+function noteBox(get, set, ph, flush) {
+  const ta = el("textarea", { placeholder: ph, maxlength: "4000" });
+  ta.value = get();
+  ta.rows = Math.min(8, Math.max(2, ta.value.split("\n").length + 1));
+  ta.addEventListener("input", () => { set(ta.value); saveLog() });
+  ta.addEventListener("blur", () => flushLog());
+  return el("div", { class: "sub-wrap" + (flush ? " flush" : "") }, ta);
+}
+function mediaRow(list, flush) {
+  const box = el("div", { class: "media" + (flush ? " flush" : "") });
+  for (const p of list) {
+    if (p.kind === "audio") { box.append(el("button", { type: "button", class: "aud", "aria-label": "聽錄音", onclick: () => openViewer(p.id) }, el("b", { text: "🎙" }), fmtSec(p.dur || 0))); continue }
+    let u = thumbURLs.get(p.id);
+    if (!u && p.thumb) { u = URL.createObjectURL(p.thumb); thumbURLs.set(p.id, u) }
+    box.append(el("button", { type: "button", "aria-label": "看照片", onclick: () => openViewer(p.id) }, u ? el("img", { src: u, alt: "" }) : "📷"));
+  }
+  return box;
+}
+function removeCustom(it) {
+  if (!confirm("刪掉「" + it.text + "」？這題的勾選和筆記也會一起刪掉（照片、錄音會留著，改掛在這一站）。")) return;
+  const s = station();
+  log.custom[s.id] = (log.custom[s.id] || []).filter(c => c.id !== it.id);
+  delete log.items[it.id];
+  for (const p of media.filter(p => p.itemId === it.id)) { p.itemId = null; patchMedia(p) }
+  saveLog(true); renderStation();
+}
+
+/* ================= 到站／離站 ================= */
+function getPos(timeout) {
+  return new Promise(res => {
+    if (!navigator.geolocation) return res(null);
+    navigator.geolocation.getCurrentPosition(
+      p => { const g = { lat: +p.coords.latitude.toFixed(6), lon: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), alt: p.coords.altitude == null ? null : Math.round(p.coords.altitude), t: p.timestamp }; lastFix = g; res(g) },
+      () => res(null),
+      { enableHighAccuracy: true, timeout: timeout || GPS_TIMEOUT, maximumAge: 30000 });
+  });
+}
+function markVisit(sid, key) {
+  const v = log.visits[sid] = log.visits[sid] || {};
+  if (v[key] && !confirm((key === "arrive" ? "到達" : "離開") + "時間已經是 " + fmtTime(v[key].t) + "，要改成現在嗎？")) return;
+  if (key === "leave" && !v.arrive) toast("還沒按「到了」，先記下離開時間");
+  const r = { t: Date.now(), gps: null, gpsPending: true };
+  v[key] = r; saveLog(true); renderTop(); refreshVisit(sid);
+  getPos().then(g => {
+    if (log.visits[sid] && log.visits[sid][key] === r) { r.gps = g; delete r.gpsPending; saveLog(true); refreshVisit(sid) }
+  });
+  if (key === "leave" && needBackup()) setTimeout(() => toast("記得從右上角選單匯出備份", 3500), 2800);
+}
+function refreshVisit(sid) {   // 只換到站那一塊，不重畫整頁（打字中鍵盤不會被收掉）
+  const box = $("visit-box");
+  if (box && station().id === sid) box.replaceWith(renderVisit(station()));
+}
+
+/* ================= 指南針（顯示真北） ================= */
+function onOrient(e) {
+  let deg = null;
+  if (typeof e.webkitCompassHeading === "number" && e.webkitCompassHeading >= 0) deg = e.webkitCompassHeading;
+  else if (e.absolute && e.alpha != null) deg = norm(360 - e.alpha);
+  if (deg != null) heading = { mag: deg, acc: typeof e.webkitCompassAccuracy === "number" ? Math.round(e.webkitCompassAccuracy) : null, t: Date.now() };
+  if (e.beta != null && e.gamma != null) tilt = { beta: e.beta, gamma: e.gamma, t: Date.now() };
+}
+let tilt = null;
+// 後鏡頭往上抬幾度（直拿、橫拿都適用；忽略左右歪斜）
+function camElevation() {
+  if (!tilt || Date.now() - tilt.t > 3000) return null;
+  const r = Math.PI / 180;
+  return Math.asin(Math.max(-1, Math.min(1, -Math.cos(tilt.beta * r) * Math.cos(tilt.gamma * r)))) / r;
+}
+async function enableCompass(silent) {
+  try {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (r !== "granted") { if (!silent) toast("沒有開放指南針"); return false }
+    }
+    if (!compassOn) { window.addEventListener("deviceorientationabsolute", onOrient); window.addEventListener("deviceorientation", onOrient); compassOn = true }
+    compassWanted = true; lsSet("scout-compass", "1");
+    return true;
+  } catch (e) { if (!silent) toast("這支手機不能開指南針"); return false }
+}
+// 用手機的傾斜判斷「實際怎麼拿」（就算開了直向鎖定也準）：p 直拿、l1／l2 兩種橫拿；平放或朝天時回 null
+function physOrient() {
+  if (!tilt || Date.now() - tilt.t > 3000) return null;
+  const r = Math.PI / 180, cb = Math.cos(tilt.beta * r);
+  const x = -cb * Math.sin(tilt.gamma * r), y = Math.sin(tilt.beta * r), z = cb * Math.cos(tilt.gamma * r);   // 「上方」在手機座標裡的方向
+  if (Math.abs(z) > 0.85) return null;
+  const ax = Math.abs(x), ay = Math.abs(y), L = x > 0 ? "l1" : "l2";
+  // 加緩衝：斜 45° 拿時不要直、橫來回跳（要明顯偏一邊才切換）
+  let o;
+  if (lastPhys === "p") o = ax > ay * 1.25 ? L : "p";
+  else if (lastPhys) o = ay > ax * 1.25 ? "p" : L;
+  else o = ay >= ax ? "p" : L;
+  lastPhys = o; return o;
+}
+let lastPhys = null;
+const portraitLocked = () => { const ph = physOrient(); return (ph === "l1" || ph === "l2") && !screenLandscape() };
+// 用太陽校正朝向：手機背面（相機正中間）對準太陽，記下這個拿法的差距
+function sunCalibrate(how) {
+  const key = orientKey(), h = trueHeading(), loc = here(), oldOff = hdgOffset();   // 確認視窗開著時手機可能轉向，先記下來
+  if (!h || !loc) { toast(!h ? "還沒讀到方向" : "還沒有位置"); return false }
+  if (portraitLocked()) { toast("先關掉直向鎖定再校正"); return false }
+  const sp = sunPos(Date.now(), loc.lat, loc.lon);
+  if (sp.alt < 0) { toast("太陽還在地平線下，不能校正"); return false }
+  if (!confirm(how + "現在太陽在 " + Math.round(sp.az) + "°，手機讀到 " + h.deg + "°。要用這個差距校正嗎？")) return false;
+  const off = Math.round(delta(sp.az, h.deg) + oldOff);
+  lsSet("scout-hdg-off-" + key, String(off)); toast("已校正 " + off + "°（只套用在" + (key === "p" ? "直拿" : "這個橫拿方向") + "）");
+  return true;
+}
+const screenLandscape = () => { const t = screen.orientation && screen.orientation.type; return t ? t.startsWith("landscape") : innerWidth > innerHeight };
+function orientKey() {
+  const ph = physOrient(); if (ph) return ph;
+  const t = (screen.orientation && screen.orientation.type) || (Math.abs(window.orientation || 0) === 90 ? "landscape" : "portrait");
+  if (t.startsWith("portrait")) return "p";
+  const a = (screen.orientation && screen.orientation.angle) ?? window.orientation;
+  return (a === 90 || a === -270) ? "l1" : "l2";
+}
+function hdgOffset() { return Number(lsGet("scout-hdg-off-" + orientKey())) || 0 }
+// 真北朝向＝磁北＋磁偏角＋（用太陽校正過的修正）
+function trueHeading() {
+  if (!heading || Date.now() - heading.t > 3000) return null;
+  const decl = Number(project && project.declination) || 0;
+  return { deg: Math.round(norm(heading.mag + decl + hdgOffset())), mag: Math.round(heading.mag), acc: heading.acc };
+}
+
+let compassTimer = null;
+async function openCompass() {
+  await enableCompass();
+  getPos(15000);
+  const body = $("compass-body");
+  const C = 130, R = 112, ns = "http://www.w3.org/2000/svg";
+  const S = (tag, a) => { const n = document.createElementNS(ns, tag); for (const k in a) n.setAttribute(k, a[k]); return n };
+  const svg = S("svg", { viewBox: "0 0 260 260", class: "dial", "aria-hidden": "true" });
+  const ring = S("g", {}), pathG = S("g", {}), uprights = [];   // uprights：跟著轉盤走、但字要保持正的
+  const up = (node, x, y) => { uprights.push({ node, x, y }); return node };
+  ring.append(S("circle", { cx: C, cy: C, r: R, fill: "none", stroke: "currentColor", "stroke-opacity": ".35", "stroke-width": "2" }));
+  for (const a of [30, 60]) ring.append(S("circle", { cx: C, cy: C, r: R * (1 - a / 90), fill: "none", stroke: "currentColor", "stroke-opacity": ".12", "stroke-width": "1" }));
+  for (let a = 0; a < 360; a += 10) {
+    const big = a % 90 === 0, r1 = R - (big ? 14 : a % 30 === 0 ? 9 : 5), t = a * Math.PI / 180;
+    ring.append(S("line", { x1: C + R * Math.sin(t), y1: C - R * Math.cos(t), x2: C + r1 * Math.sin(t), y2: C - r1 * Math.cos(t), stroke: "currentColor", "stroke-width": big ? 3 : 1.5, "stroke-opacity": big ? 1 : .6 }));
+  }
+  for (const [lab, a] of [["北", 0], ["東", 90], ["南", 180], ["西", 270]]) {
+    const t = a * Math.PI / 180, x = C + (R - 26) * Math.sin(t), y = C - (R - 26) * Math.cos(t);
+    const tx = S("text", { x, y: y + 6, "text-anchor": "middle", "font-size": "17", "font-weight": "700", fill: a === 0 ? "#D92D20" : "currentColor" });
+    tx.textContent = lab; ring.append(up(tx, x, y));
+  }
+  ring.append(pathG);
+  svg.append(ring, S("path", { d: "M" + C + " 4 L" + (C - 9) + " 22 L" + (C + 9) + " 22 Z", fill: "#D92D20" }));
+  // 太陽高度 → 半徑：地平線在外圈、正頭頂在圓心
+  const polar = (az, alt) => { const t = az * Math.PI / 180, r = R * (1 - Math.max(0, alt) / 90); return [C + r * Math.sin(t), C - r * Math.cos(t)] };
+
+  let sel = sunSel(), day = null, selPos = null;
+  const big = el("div", { class: "hdg-big", text: "—" }), sub = el("div", { class: "hdg-sub", text: "" });
+  const dateIn = el("input", { type: "date", value: sel.date, style: "font:inherit;font-size:16px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)" });
+  const slider = el("input", { type: "range", min: "240", max: "1200", step: "5", value: String(sel.min), style: "width:100%;height:36px", "aria-label": "時間（04:00–20:00）" });
+  const setMin = (m, exact) => { sel.min = Math.max(0, Math.min(1435, exact ? Math.round(m) : Math.round(m / 5) * 5)); slider.value = String(sel.min); setSunSel(sel); update() };
+  const stepBtn = (text, fn) => el("button", { class: "btn", type: "button", text, style: "flex:1;min-width:0;padding-left:2px;padding-right:2px;font-size:14px;white-space:nowrap", onclick: fn });
+  const stepRow = el("div", { class: "btn-row", style: "flex-wrap:nowrap;gap:4px" },
+    stepBtn("日出", () => day && day.rise && setMin(day.rise.m, true)), stepBtn("−1時", () => setMin(sel.min - 60)), stepBtn("−15分", () => setMin(sel.min - 15)),
+    stepBtn("+15分", () => setMin(sel.min + 15)), stepBtn("+1時", () => setMin(sel.min + 60)), stepBtn("日落", () => day && day.set && setMin(day.set.m, true)));
+  const timeLab = el("b", { style: "font-size:20px;font-variant-numeric:tabular-nums" });
+  const selInfo = el("div", { class: "marks-list" }), dayInfo = el("div", { class: "marks-list" });
+  const chipsBox = el("div", { class: "btn-row" });
+
+  const drawDay = () => {
+    const loc = here() || { lat: 24.5, lon: 121.5 };
+    day = sunDay(sel.date, loc.lat, loc.lon);
+    pathG.replaceChildren(); uprights.length = 4;
+    const vis = day.pts.filter(p => p.alt > 0);
+    if (vis.length > 1) pathG.append(S("polyline", { points: vis.map(p => polar(p.az, p.alt).join(",")).join(" "), fill: "none", stroke: "#D99A00", "stroke-width": "3", "stroke-opacity": ".9" }));
+    for (const p of day.pts) if (p.m % 60 === 0 && p.alt > 0) {
+      const [x, y] = polar(p.az, p.alt);
+      pathG.append(S("circle", { cx: x, cy: y, r: 3, fill: "#E0A800" }));
+      const tx = S("text", { x: x + 7, y: y + 4, "font-size": "12", "font-weight": "600", fill: "currentColor", "fill-opacity": ".9" }); tx.textContent = String(p.m / 60);
+      pathG.append(up(tx, x + 7, y + 4));
+    }
+    for (const [ev, lab] of [[day.rise, "出"], [day.set, "落"]]) if (ev) {
+      const [x, y] = polar(ev.az, 0);
+      pathG.append(S("circle", { cx: x, cy: y, r: 6, fill: "none", stroke: "#E0A800", "stroke-width": "3" }));
+    }
+    selPos = S("circle", { cx: C, cy: C, r: 10, fill: "#FFD23F", stroke: "#14171A", "stroke-width": "2" });
+    pathG.append(selPos);
+    const span = (a, b) => a && b ? fmtMin(a.m) + "–" + fmtMin(b.m) : "—";
+    dayInfo.replaceChildren(
+      el("div", { text: "日出 " + (day.rise ? fmtMin(day.rise.m) + "，方位 " + Math.round(day.rise.az) + "°（" + dirName(day.rise.az) + "）" : "—") }),
+      el("div", { text: "日落 " + (day.set ? fmtMin(day.set.m) + "，方位 " + Math.round(day.set.az) + "°（" + dirName(day.set.az) + "）" : "—") }),
+      el("div", { text: "正午 " + fmtMin(day.noon.m) + "，最高 " + Math.round(day.noon.alt) + "°" }),
+      el("div", { text: "金色時刻 早 " + span(day.goldAM[0], day.goldAM[1]) + "｜晚 " + span(day.goldPM[0], day.goldPM[1]) }),
+      el("div", { text: "藍調時刻 早 " + span(day.blueAM[0], day.blueAM[1]) + "｜晚 " + span(day.bluePM[0], day.bluePM[1]) }));
+    chipsBox.replaceChildren(...((project.sunDates || []).concat([{ date: todayTPE(), label: "今天" }])).map(d =>
+      el("button", { class: "btn" + (d.date === sel.date ? " primary" : ""), type: "button", text: d.label, onclick: () => { sel.date = d.date; dateIn.value = d.date; setSunSel(sel); drawDay(); update() } })));
+  };
+  const update = () => {
+    const h = trueHeading(), loc = here() || { lat: 24.5, lon: 121.5 };
+    const p = sunPos(tpeMs(sel.date, sel.min), loc.lat, loc.lon);
+    timeLab.textContent = sel.date.slice(5).replace("-", "/") + " " + fmtMin(sel.min);
+    if (selPos) { const [x, y] = polar(p.az, p.alt); selPos.setAttribute("cx", x); selPos.setAttribute("cy", y); selPos.setAttribute("opacity", p.alt > -6 ? "1" : ".25") }
+    const rel = h ? Math.round(delta(p.az, h.deg)) : null;
+    selInfo.replaceChildren(el("div", { text: "太陽 方位 " + Math.round(p.az) + "°（" + dirName(p.az) + "）｜高度 " + Math.round(p.alt) + "°" + (p.alt < -0.833 ? "（地平線下）" : "") }),
+      rel == null ? "" : el("div", { text: "從你現在的方向：" + (Math.abs(rel) <= 3 ? "正前方" : (rel > 0 ? "往右 " : "往左 ") + Math.abs(rel) + "°") }));
+    if (!h) { big.textContent = "—"; sub.textContent = compassOn ? "轉一下手機讓指南針讀到方向" : "沒有開放指南針（底盤固定北朝上）"; ring.removeAttribute("transform"); for (const u of uprights) u.node.removeAttribute("transform"); return }
+    ring.setAttribute("transform", "rotate(" + (-h.deg) + " " + C + " " + C + ")");
+    for (const u of uprights) u.node.setAttribute("transform", "rotate(" + h.deg + " " + u.x + " " + u.y + ")");
+    big.textContent = h.deg + "°  " + dirName(h.deg);
+    sub.textContent = "真北｜磁北 " + h.mag + "°" + (h.acc != null ? "｜誤差約 ±" + h.acc + "°" : "") + (hdgOffset() ? "｜已校正 " + (hdgOffset() > 0 ? "+" : "") + hdgOffset() + "°" : "");
+  };
+  slider.addEventListener("input", () => { sel.min = +slider.value; setSunSel(sel); update() });
+  dateIn.addEventListener("change", () => { if (/^\d{4}-\d\d-\d\d$/.test(dateIn.value)) { sel.date = dateIn.value; setSunSel(sel); drawDay(); update() } });
+  drawDay();
+  body.replaceChildren(
+    el("h2", { text: "指南針＋太陽" }),
+    el("div", { class: "dial-wrap" }, svg), big, sub,
+    el("div", { style: "display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:6px" }, timeLab,
+      el("button", { class: "btn", type: "button", text: "現在", onclick: () => { sel = { date: todayTPE(), min: Math.round(nowMinTPE() / 5) * 5 }; slider.value = sel.min; dateIn.value = sel.date; setSunSel(sel); drawDay(); update() } })),
+    slider, stepRow, selInfo,
+    el("hr"),
+    chipsBox,
+    el("div", { style: "display:flex;gap:8px;align-items:center;flex-wrap:wrap" }, el("span", { class: "muted", text: "其他日期" }), dateIn),
+    dayInfo,
+    el("p", { class: "muted", text: "黃線是這一天的太陽路徑，點旁的數字是幾點；越靠中間太陽越高。相機畫面會疊這一天的太陽位置。" }),
+    el("hr"),
+    el("div", { class: "btn-row" },
+      el("button", { class: "btn primary", type: "button", text: "記到這站筆記", onclick: () => {
+        const h = trueHeading(); if (!h) { toast("還沒讀到方向"); return }
+        const s = station(), line = fmtTime(Date.now()) + " 方向 " + h.deg + "°（" + dirName(h.deg) + "）";
+        log.stationNotes[s.id] = (log.stationNotes[s.id] ? log.stationNotes[s.id] + "\n" : "") + line; saveLog(true); renderStation(); toast("已記下：" + line);
+      } }),
+      el("button", { class: "btn", type: "button", text: "用太陽校正", onclick: () => sunCalibrate("請把手機背面正對太陽（拿法要跟拍照時一樣：直拿或橫拿；相機頁也可以校正，比較好對）。") })),
+    el("div", { class: "btn-row" },
+      el("button", { class: "btn", type: "button", text: "清除校正", onclick: () => { lsSet("scout-hdg-off-" + orientKey(), "0"); toast("已清除這個拿法的校正") } }),
+      el("button", { class: "btn", type: "button", text: "關閉", onclick: () => $("compass").close() })),
+    el("p", { class: "muted", text: "專案設定的磁偏角 " + (project.declination || 0) + "°。直拿、橫拿各自可以校正一次；拍照時的朝向用一樣的校正。" }));
+  $("compass").showModal();
+  clearInterval(compassTimer); compassTimer = setInterval(update, 120); update();
+}
+
+/* ================= 內建相機＋模擬焦段 ================= */
+const SENSORS = [{ id: "ff", name: "全片幅", w: 36, note: "FX3、A7 IV" }, { id: "s35", name: "Super 35", w: 24.9, note: "APS-C 約 23.5" }, { id: "m43", name: "M43", w: 17.3, note: "GH 系列" }];
+const FOCALS = [14, 16, 20, 24, 28, 35, 50, 70, 85, 105, 135, 200];
+const ASPECTS = [{ id: "16x9", name: "16:9", r: 16 / 9 }, { id: "239", name: "2.39:1", r: 2.39 }, { id: "9x16", name: "9:16 直式", r: 9 / 16, vertical: true }];
+const BASES = [13, 24, 26, 28, 48, 77, 120];
+let camOpen = false, cam = null, camTimer = null;
+function camPrefs() { let p = {}; try { p = JSON.parse(lsGet("scout-cam") || "{}") || {} } catch (e) {} return Object.assign({ sensor: "ff", focal: 35, aspect: "16x9", deviceId: "", base: 0, calib: 0 }, p) }
+let cp = camPrefs();
+function saveCam() { lsSet("scout-cam", JSON.stringify(cp)) }
+const sensorOf = () => SENSORS.find(s => s.id === cp.sensor) || SENSORS[0];
+const aspectOf = () => ASPECTS.find(a => a.id === cp.aspect) || ASPECTS[0];
+function guessBase(label) {
+  const l = (label || "").toLowerCase();
+  if (/ultra|triple|dual wide|超廣角|三鏡頭|三相機|雙廣角/.test(l)) return 13;   // 三鏡頭／雙廣角是多鏡頭虛擬相機，從超廣角開始
+  if (/telephoto|長焦|望遠/.test(l)) return 77;
+  return 26;
+}
+const baseEq = () => cp.base || (cam && cam.baseGuess) || 26;
+// 這個焦段的框，在影像上佔多大（影像像素）
+function frameGeom() {
+  const v = $("cam-video"), vw = v.videoWidth, vh = v.videoHeight;
+  if (!vw || !vh) return null;
+  const L = Math.max(vw, vh), z = (cam && cam.zoom) || 1;
+  const tanB = (43.27 * 0.8 / 2) / baseEq() / z * (1 + cp.calib / 100);   // 手機長邊的半角正切（等效焦段以對角線計、4:3 感光元件）
+  const sw = sensorOf().w, a = aspectOf();
+  const longPx = L * ((sw / 2) / cp.focal) / tanB;
+  const fw = a.vertical ? longPx * a.r : longPx, fh = a.vertical ? longPx : longPx / a.r;
+  const hfov = 2 * Math.atan(((a.vertical ? sw / (16 / 9) : sw) / 2) / cp.focal) * 180 / Math.PI;
+  const vfov = 2 * Math.atan(Math.tan(hfov / 2 * Math.PI / 180) / a.r) * 180 / Math.PI;
+  return { vw, vh, fw, fh, hfov, vfov, overflow: fw > vw * 1.01 || fh > vh * 1.01 };
+}
+function layoutCam() {
+  const g = frameGeom(), view = $("cam-view").getBoundingClientRect(), v = $("cam-video"), f = $("cam-frame");
+  if (!g || !view.width) return;
+  const cw = Math.min(g.fw, g.vw), ch = Math.min(g.fh, g.vh);
+  const s = Math.min(view.width * 0.94 / Math.max(g.fw, 1), (view.height - 34) * 0.94 / Math.max(g.fh, 1));
+  v.style.width = g.vw * s + "px"; v.style.height = g.vh * s + "px";
+  v.style.left = (view.width - g.vw * s) / 2 + "px"; v.style.top = (view.height - 20 - g.vh * s) / 2 + "px";
+  f.style.width = g.fw * s + "px"; f.style.height = g.fh * s + "px";
+  f.style.left = (view.width - g.fw * s) / 2 + "px"; f.style.top = (view.height - 20 - g.fh * s) / 2 + "px";
+  $("cam-lab").textContent = cp.focal + "mm｜" + sensorOf().name + "｜" + aspectOf().name + (g.overflow ? "｜比手機鏡頭廣，框外拍不到" : "");
+  cam.geom = { g, cw, ch };
+}
+function camTick() {
+  if (!camOpen) return;
+  const h = trueHeading(), g = cam && cam.geom && cam.geom.g;
+  $("cam-hdg").textContent = h ? "朝向 " + h.deg + "° " + dirName(h.deg) + (h.acc != null ? " ±" + h.acc + "°" : "") : (compassOn ? "朝向 讀取中" : "朝向 —（沒開放指南針）");
+  // 手機橫拿、畫面卻沒轉＝開了直向鎖定：框的方向會錯
+  const warn = $("cam-warn"), locked = portraitLocked();
+  warn.hidden = !locked;
+  const loc0 = here(), sunNow = h && loc0 ? sunPos(Date.now(), loc0.lat, loc0.lon) : null;
+  $("cam-calib").hidden = !(sunNow && sunNow.alt > 2 && !locked);   // 太陽在天上才給校正
+  if (locked) warn.textContent = "手機橫拿但畫面沒轉：請從控制中心關掉「直向鎖定」，框和太陽位置才會對";
+  const marksBox = $("cam-marks"); marksBox.replaceChildren();
+  const unsure = !!h && h.acc != null && (h.acc < 0 || h.acc > 20);   // iPhone 會回報誤差度數，負數＝無效
+  marksBox.classList.toggle("unsure", unsure || locked);
+  if (!h || !g) { $("cam-sun").textContent = ""; $("cam-path").textContent = ""; return }
+  const half = g.hfov / 2, inside = [], outside = [];
+  for (const mk of sunMarks()) {
+    const d = delta(mk.az, h.deg);
+    if (Math.abs(d) <= half) {
+      const x = 50 + 50 * Math.tan(d * Math.PI / 180) / Math.tan(half * Math.PI / 180);
+      marksBox.append(el("div", { class: "sunmark", style: "left:" + x.toFixed(1) + "%" }, el("span", { style: "bottom:" + (4 + inside.length * 22) + "px", text: mk.label })));
+      inside.push("☀ " + mk.label + (Math.abs(d) > 2 ? " 框內偏" + (d > 0 ? "右 " : "左 ") + Math.round(Math.abs(d)) + "°" : " 框內正中"));
+    } else outside.push(mk.label + (d > 0 ? " →" : " ←") + Math.round(Math.abs(d)) + "°");
+  }
+  // 選定那一天每個整點的太陽（左右用朝向、上下用手機仰角）
+  const elev = camElevation(), loc = here();
+  if (elev != null && loc) {
+    const sel = sunSel(), day = sunDay(sel.date, loc.lat, loc.lon);
+    const tH = Math.tan(half * Math.PI / 180), tV = Math.tan(g.vfov / 2 * Math.PI / 180);
+    const put = (az, alt, cls, lab) => {
+      const dx = delta(az, h.deg), dy = alt - elev;
+      if (Math.abs(dx) >= 89 || Math.abs(dy) >= 89) return;
+      const x = 50 + 50 * Math.tan(dx * Math.PI / 180) / tH, y = 50 - 50 * Math.tan(dy * Math.PI / 180) / tV;
+      if (x < -2 || x > 102 || y < -2 || y > 102) return;
+      marksBox.append(el("div", { class: cls, style: "left:" + x.toFixed(1) + "%;top:" + y.toFixed(1) + "%" }, lab ? el("span", { text: lab }) : ""));
+    };
+    for (const p of day.pts) if (p.alt > -2 && p.m % 30 === 0) put(p.az, p.alt, p.m % 60 === 0 ? "sundot hr" : "sundot", p.m % 60 === 0 ? String(p.m / 60) : "");
+    const sp = sunPos(tpeMs(sel.date, sel.min), loc.lat, loc.lon);
+    if (sp.alt > -2) put(sp.az, sp.alt, "sundot sel", fmtMin(sel.min));
+    $("cam-path").textContent = (unsure ? "⚠ 指南針誤差大，僅供參考｜" : hdgOffset() ? "" : "⚠ 這個拿法還沒校正｜") +
+      "太陽路徑：" + sel.date.slice(5).replace("-", "/") + "（到 🧭 換日期、時間）｜仰角 " + Math.round(elev) + "°";
+  } else $("cam-path").textContent = elev == null ? "開指南針後會疊上太陽路徑" : "";
+  $("cam-sun").textContent = inside.concat(outside).join("｜");
+}
+function renderCamControls() {
+  const fb = $("cam-focals"); fb.replaceChildren();
+  for (const f of FOCALS) fb.append(el("button", { type: "button", "aria-pressed": f === cp.focal ? "true" : "false", text: f + "", onclick: () => { cp.focal = f; saveCam(); renderCamControls(); applyZoom() } }));
+  const cur = fb.querySelector('[aria-pressed="true"]'); if (cur) cur.scrollIntoView({ inline: "center", block: "nearest" });
+  $("cam-fmt").textContent = sensorOf().name + "｜" + aspectOf().name;
+  $("cam-done").textContent = cam && cam.shots ? "完成（" + cam.shots + "）" : "完成";
+  layoutCam();
+}
+async function applyZoom() {
+  // 手機支援變焦就先用光學／感光元件裁切，畫質比較好；不支援就純數位裁切
+  if (!cam || !cam.track) return layoutCam();
+  const caps = cam.track.getCapabilities ? cam.track.getCapabilities() : {};
+  if (caps.zoom && caps.zoom.max > caps.zoom.min) {
+    const saved = cam.zoom || 1; cam.zoom = 1;
+    const g = frameGeom(); cam.zoom = saved;
+    if (g) {
+      const need = Math.max(g.fw / g.vw, g.fh / g.vh);
+      const z = Math.min(caps.zoom.max, Math.max(caps.zoom.min, need < 0.95 ? 0.95 / need : caps.zoom.min));
+      try { await cam.track.applyConstraints({ advanced: [{ zoom: z }] }); const st = cam.track.getSettings(); cam.zoom = st.zoom || z } catch (e) {}
+    }
+  }
+  layoutCam();
+}
+async function startStream() {
+  const base = { width: { ideal: 3840 }, height: { ideal: 2160 } };
+  const tries = cp.deviceId ? [{ deviceId: { exact: cp.deviceId }, ...base }, { facingMode: { ideal: "environment" }, ...base }] : [{ facingMode: { ideal: "environment" }, ...base }, { facingMode: "environment" }];
+  let err;
+  for (const v of tries) { try { return await navigator.mediaDevices.getUserMedia({ audio: false, video: v }) } catch (e) { err = e } }
+  throw err;
+}
+async function openCamera(target) {
+  if (camOpen) return;
+  enableCompass(true);   // 在點擊裡順便開指南針（第一次會跳權限視窗）
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { systemCamera(target); return }
+  camOpen = true;
+  cam = { target, shots: 0, zoom: 1, stream: null, track: null, baseGuess: 26, geom: null, watch: null };
+  const s = project.stations.find(x => x.id === target.sid), it = s && itemsOf(s).find(x => x.id === target.itemId);
+  $("cam-target").textContent = "存到：" + (s ? s.short : "") + (it ? "｜" + it.text : "｜這一站");
+  $("cam").hidden = false; $("cam-set").hidden = true;
+  const msg = $("cam-msg"); msg.hidden = false; msg.textContent = "開相機中…";
+  renderCamControls();
+  if (navigator.geolocation) cam.watch = navigator.geolocation.watchPosition(p => { lastFix = { lat: +p.coords.latitude.toFixed(6), lon: +p.coords.longitude.toFixed(6), acc: Math.round(p.coords.accuracy), alt: p.coords.altitude == null ? null : Math.round(p.coords.altitude), t: p.timestamp } }, () => {}, { enableHighAccuracy: true, maximumAge: 10000, timeout: 60000 });
+  try {
+    const stream = await startStream();
+    if (!camOpen) { stream.getTracks().forEach(t => t.stop()); return }
+    cam.stream = stream; cam.track = stream.getVideoTracks()[0];
+    cam.baseGuess = guessBase(cam.track.label);
+    const v = $("cam-video"); v.srcObject = stream;
+    await v.play().catch(() => {});
+    await new Promise(r => { if (v.videoWidth) r(); else v.addEventListener("loadedmetadata", r, { once: true }); setTimeout(r, 3000) });
+    msg.hidden = true;
+    await applyZoom();
+  } catch (e) {
+    msg.textContent = "開不了內建相機（" + (e && e.name || e) + "）。可以按右下「系統相機」拍。";
+  }
+  clearInterval(camTimer); camTimer = setInterval(camTick, 150);
+}
+function closeCamera() {
+  if (!camOpen) return;
+  camOpen = false; clearInterval(camTimer);
+  if (cam && cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+  if (cam && cam.watch != null) navigator.geolocation.clearWatch(cam.watch);
+  $("cam-video").srcObject = null; $("cam").hidden = true;
+  const t = cam && cam.target; cam = null;
+  renderStation(); renderTop();
+  if (t) lastActivity = Date.now();
+}
+async function shoot() {
+  if (!cam || !cam.geom || !cam.stream) { toast("相機還沒準備好"); return }
+  const { g, cw, ch } = cam.geom, v = $("cam-video");
+  const at = Date.now(), hd = trueHeading(), target = cam.target;
+  const gps = lastFix && at - lastFix.t < 120000 ? lastFix : null;   // 超過 2 分鐘的定位可能是上一站的，不掛
+  const lens = { focal: cp.focal, sensor: sensorOf().name, aspect: aspectOf().name, hfov: Math.round(g.hfov * 10) / 10 };
+  const c = document.createElement("canvas");
+  c.width = Math.round(cw); c.height = Math.round(ch);
+  c.getContext("2d").drawImage(v, (g.vw - cw) / 2, (g.vh - ch) / 2, cw, ch, 0, 0, c.width, c.height);
+  const fl = $("cam-flash"); fl.classList.add("on"); setTimeout(() => fl.classList.remove("on"), 60);
+  cam.shots++; renderCamControls();
+  try {
+    const full = await withTimeout(new Promise(r => c.toBlob(r, "image/jpeg", 0.9)), 15000);
+    const sc = Math.min(1, THUMB_EDGE / Math.max(c.width, c.height)), t = document.createElement("canvas");
+    t.width = Math.round(c.width * sc); t.height = Math.round(c.height * sc); t.getContext("2d").drawImage(c, 0, 0, t.width, t.height);
+    const thumb = await withTimeout(new Promise(r => t.toBlob(r, "image/jpeg", 0.7)), 15000);
+    c.width = c.height = t.width = t.height = 0;
+    if (!full) throw new Error("轉檔失敗");
+    const rec0 = { id: uid("ph-"), kind: "photo", projectId: project.id, stationId: target.sid, itemId: target.itemId, t: at, savedAt: Date.now(), gps, heading: hd, lens, w: Math.round(cw), h: Math.round(ch), size: full.size, type: "image/jpeg", thumb };
+    await storeMedia(rec0, full);
+  } catch (e) { toast("這張沒存到：" + (e && e.message || e)) }
+}
+function systemCamera(target) {
+  closeCamera();
+  pendingSys = { target, gpsP: getPos(), at: Date.now() };
+  const f = $("f-camera"); f.value = ""; f.click();
+}
+async function decodeImage(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = new Image(); img.src = url;
+    await withTimeout(img.decode(), 8000);
+    return { src: img, w: img.naturalWidth, h: img.naturalHeight, done: () => URL.revokeObjectURL(url) };
+  } catch (e) {
+    URL.revokeObjectURL(url);
+    const bm = await withTimeout(createImageBitmap(file, { imageOrientation: "from-image" }), 8000);
+    return { src: bm, w: bm.width, h: bm.height, done: () => bm.close && bm.close() };
+  }
+}
+async function processImage(file) {
+  const im = await decodeImage(file);
+  try {
+    const draw = edge => {
+      const sc = Math.min(1, edge / Math.max(im.w, im.h)), c = document.createElement("canvas");
+      c.width = Math.round(im.w * sc); c.height = Math.round(im.h * sc);
+      c.getContext("2d").drawImage(im.src, 0, 0, c.width, c.height);
+      return withTimeout(new Promise(r => c.toBlob(b => { c.width = c.height = 0; r(b) }, "image/jpeg", edge === THUMB_EDGE ? 0.7 : 0.88)), 15000);
+    };
+    const full = await draw(MAX_EDGE), thumb = await draw(THUMB_EDGE);
+    if (!full || !thumb) throw new Error("轉檔失敗");
+    return { full, thumb, w: im.w, h: im.h };
+  } finally { im.done() }
+}
+$("f-camera").addEventListener("change", async () => {
+  const f = $("f-camera").files[0], cap = pendingSys; pendingSys = null;
+  if (!f || !cap) return;
+  const hd = trueHeading();
+  toast("存照片中…");
+  let pic;
+  try { pic = await processImage(f) } catch (e) { pic = { full: f, thumb: null, w: 0, h: 0 } }
+  const rec0 = { id: uid("ph-"), kind: "photo", projectId: project.id, stationId: cap.target.sid, itemId: cap.target.itemId, t: cap.at, savedAt: Date.now(), gps: null, heading: hd, lens: null, w: pic.w, h: pic.h, size: pic.full.size, type: pic.full.type || "image/jpeg", thumb: pic.thumb };
+  const ok = await storeMedia(rec0, pic.full);
+  if (ok) toast(hd ? "已存，朝向 " + hd.deg + "°（" + dirName(hd.deg) + "）" : "已存");
+  const g = await cap.gpsP;
+  if (g) { rec0.gps = g; patchMedia(rec0) }
+});
+
+/* ---- 照片、錄音存檔：存不進去就留在記憶體，讓使用者重試或先分享出去 ---- */
+async function storeMedia(r, blob) {
+  try {
+    await run(["photos", "blobs"], "readwrite", t => { t.objectStore("blobs").put(blob, r.id); t.objectStore("photos").put(r) });
+    media.push(r);
+    if (!camOpen && station().id === r.stationId) renderStation();
+    renderTop();
+    return true;
+  } catch (e) {
+    unsaved.push({ r, blob }); renderUnsaved();
+    toast("沒存進手機：" + (e && e.message || e) + "，先留著，請按上方「再試一次」", 5000);
+    return false;
+  }
+}
+async function patchMedia(r) {   // 已經刪掉的就不寫回去
+  if (!media.includes(r)) return;
+  try { await run(["photos"], "readwrite", t => t.objectStore("photos").put(r)) } catch (e) {}
+}
+function renderUnsaved() {
+  $("unsaved").hidden = !unsaved.length;
+  $("unsaved-msg").textContent = "有 " + unsaved.length + " 筆照片／錄音還沒存進手機";
+}
+async function retryUnsaved() {
+  const list = unsaved; unsaved = [];
+  for (const u of list) await storeMedia(u.r, u.blob);
+  renderUnsaved();
+  if (!unsaved.length) toast("都存好了");
+}
+async function shareUnsaved() {
+  const files = unsaved.map(u => new File([u.blob], (u.r.kind === "audio" ? "錄音_" : "照片_") + stamp(u.r.t).date + "-" + stamp(u.r.t).time + extOf(u.r), { type: u.r.type }));
+  try { await navigator.share({ files }) } catch (e) { if (!e || e.name !== "AbortError") toast("分享失敗：" + (e && e.name || e)) }
+}
+const extOf = r => r.kind === "audio" ? (/mp4|m4a|aac/.test(r.type) ? ".m4a" : /webm/.test(r.type) ? ".webm" : /ogg/.test(r.type) ? ".ogg" : ".audio") : ".jpg";
+
+/* ================= 錄音 ================= */
+let rec = null, recTimer = null, recCutByHide = false;
+async function toggleRec(target) {
+  if (rec) { await stopRec(); return }
+  if (!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { toast("這支手機不支援網頁錄音"); return }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }) } catch (e) { toast("沒有麥克風權限（" + (e && e.name || e) + "）"); return }
+  const mime = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"].find(m => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || "";
+  let mr;
+  try { mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined) } catch (e) { stream.getTracks().forEach(t => t.stop()); toast("沒辦法開始錄音"); return }
+  const r = { mr, stream, chunks: [], target, t0: Date.now(), gps: null, mime: mr.mimeType || mime || "audio/mp4", wake: null };
+  getPos().then(g => { r.gps = g });
+  mr.ondataavailable = e => { if (e.data && e.data.size) r.chunks.push(e.data) };
+  mr.start(1000);
+  rec = r;
+  try { if (navigator.wakeLock) r.wake = await navigator.wakeLock.request("screen") } catch (e) {}
+  const s = project.stations.find(x => x.id === target.sid), it = s && itemsOf(s).find(x => x.id === target.itemId);
+  $("rec-what").textContent = (s ? s.short : "") + (it ? "｜" + it.text : "｜這一站");
+  $("recbar").hidden = false;
+  clearInterval(recTimer); recTimer = setInterval(() => { $("rec-time").textContent = fmtSec(Date.now() - r.t0) }, 500);
+  $("rec-time").textContent = "0:00";
+  renderFoot(); renderStation();
+  toast("錄音中，螢幕別鎖；可以照常換頁");
+}
+function stopRec() {
+  const r = rec; if (!r) return Promise.resolve();
+  rec = null; clearInterval(recTimer); $("recbar").hidden = true;
+  return new Promise(resolve => {
+    const finish = async () => {
+      r.stream.getTracks().forEach(t => t.stop());
+      try { r.wake && r.wake.release() } catch (e) {}
+      const dur = Date.now() - r.t0;
+      if (!r.chunks.length) { toast("沒有錄到聲音"); renderFoot(); renderStation(); resolve(); return }
+      const blob = new Blob(r.chunks, { type: r.mime.split(";")[0] });
+      const rec0 = { id: uid("au-"), kind: "audio", projectId: project.id, stationId: r.target.sid, itemId: r.target.itemId, t: r.t0, savedAt: Date.now(), dur, gps: r.gps, heading: null, size: blob.size, type: blob.type };
+      const ok = await storeMedia(rec0, blob);
+      if (ok) toast("錄音已存（" + fmtSec(dur) + "）");
+      renderFoot(); renderStation(); resolve();
+    };
+    r.mr.onstop = finish;
+    try { r.mr.state !== "inactive" ? r.mr.stop() : finish() } catch (e) { finish() }
+  });
+}
+
+/* ================= 照片／錄音檢視 ================= */
+async function openViewer(id) {
+  const p = media.find(x => x.id === id); if (!p) return;
+  const body = $("viewer-body"); body.replaceChildren(el("p", { class: "muted", text: "載入中…" }));
+  $("viewer").showModal();
+  let blob = null; try { blob = await dbGet("blobs", id) } catch (e) {}
+  const url = blob ? URL.createObjectURL(blob) : null;
+  const s = project.stations.find(x => x.id === p.stationId), it = s && itemsOf(s).find(x => x.id === p.itemId);
+  const meta = el("div", { class: "meta" },
+    el("div", { text: fmtDateTime(p.t) + "｜" + (s ? s.short : "") + (it ? "：" + it.text : "") }),
+    p.kind === "audio" ? el("div", { text: "長度 " + fmtSec(p.dur || 0) }) : el("div", { text: (p.lens ? p.lens.focal + "mm " + p.lens.sensor + " " + p.lens.aspect + "｜" : "") + (p.heading ? "朝向 " + p.heading.deg + "°（" + dirName(p.heading.deg) + "，真北）" : "沒有朝向") }),
+    p.gps ? el("div", {}, el("a", { href: mapURL(p.gps), target: "_blank", rel: "noopener", text: "位置 " + p.gps.lat + ", " + p.gps.lon + "（±" + p.gps.acc + " m）" })) : el("div", { text: "沒有位置" }));
+  const close = () => $("viewer").close();
+  const btns = el("div", { class: "btn-row" });
+  if (p.kind !== "audio") btns.append(el("button", { class: "btn", type: "button", text: "重記朝向", onclick: async () => {
+    if (!compassOn) { if (!(await enableCompass())) return; await new Promise(r => setTimeout(r, 600)) }
+    const h = trueHeading(); if (!h) { toast("還沒讀到指南針，對著拍攝方向舉好再按一次"); return }
+    p.heading = h; await patchMedia(p); toast("朝向改成 " + h.deg + "°"); close(); openViewer(id);
+  } }));
+  btns.append(
+    el("button", { class: "btn danger", type: "button", text: "刪除", onclick: async () => {
+      if (!confirm("刪除這個" + (p.kind === "audio" ? "錄音" : "照片") + "？刪了就找不回來。")) return;
+      try { await run(["photos", "blobs"], "readwrite", t => { t.objectStore("photos").delete(id); t.objectStore("blobs").delete(id) }) } catch (e) { toast("刪除失敗：" + (e && e.message || e)); return }
+      media = media.filter(x => x !== p);
+      const u = thumbURLs.get(id); if (u) { URL.revokeObjectURL(u); thumbURLs.delete(id) }
+      close(); renderStation(); renderTop();
+    } }),
+    el("button", { class: "btn primary", type: "button", text: "關閉", onclick: close }));
+  body.replaceChildren(
+    !url ? el("p", { text: "找不到檔案" }) : p.kind === "audio" ? el("audio", { src: url, controls: true, preload: "metadata" }) : el("img", { src: url, alt: "" }),
+    meta, btns);
+  $("viewer").addEventListener("close", () => { if (url) URL.revokeObjectURL(url); const a = body.querySelector("audio"); if (a) a.pause() }, { once: true });
+}
+
+/* ================= 選單 ================= */
+function needBackup() {
+  if (!log) return false;
+  const lastChange = Math.max(log.updatedAt || 0, ...media.map(p => p.savedAt || p.t));
+  return lastChange > 0 && lastChange > (log.lastExport || 0) && Date.now() - (log.lastExport || 0) > 2 * 3600e3;
+}
+async function openMenu() {
+  const S = project.stations, total = S.reduce((n, s) => n + itemsOf(s).length, 0);
+  const done = S.reduce((n, s) => n + itemsOf(s).filter(i => isDone(i.id)).length, 0);
+  const mustAll = S.reduce((n, s) => n + s.items.filter(i => i.must).length, 0), mustDone = S.reduce((n, s) => n + s.items.filter(i => i.must && isDone(i.id)).length, 0);
+  let used = "";
+  try { const e = await navigator.storage.estimate(); used = "手機上用了約 " + Math.round((e.usage || 0) / 1e6) + " MB" } catch (e) {}
+  const night = document.documentElement.classList.contains("night");
+  const kids = [
+    el("h2", { text: project.name }),
+    project.subtitle ? el("p", { class: "sub", text: project.subtitle }) : "",
+    el("div", { class: "muted", text: "完成 " + done + "／" + total + " 項（必做 " + mustDone + "／" + mustAll + "）｜照片 " + photos().length + " 張｜錄音 " + audios().length + " 段" }),
+    el("button", { class: "btn primary wide", type: "button", text: "匯出報告＋備份", onclick: prepareExport }),
+    el("div", { class: "muted", text: log.lastExport ? "上次匯出：" + fmtDateTime(log.lastExport) : "還沒匯出過" }),
+    el("button", { class: "btn wide", type: "button", text: night ? "關掉夜間紅光模式" : "夜間紅光模式（夜觀、清晨用）", onclick: () => { const on = !night; document.documentElement.classList.toggle("night", on); lsSet("scout-night", on ? "1" : "0"); $("menu").close() } }),
+  ];
+  if (project.facts.length) kids.push(el("hr"), el("div", { class: "facts" }, project.facts.map(f => el("div", { text: "・" + f }))));
+  if (project.guide.length) kids.push(el("hr"), el("h2", { text: "每到一站" }), el("ul", {}, project.guide.map(g => el("li", { text: g }))));
+  kids.push(el("hr"), el("button", { class: "btn wide", type: "button", text: "匯入／更新專案檔", onclick: () => { $("menu").close(); $("f-import").click() } }));
+  if (projects.length > 1) kids.push(el("div", { class: "sec-label", text: "切換專案" }), ...projects.filter(p => p.id !== project.id).map(p => el("button", { class: "btn wide", type: "button", text: p.name, onclick: async () => { await flushLog(); lsSet("scout-current", p.id); $("menu").close(); await loadAll() } })));
+  kids.push(el("div", { class: "muted", text: [used, "版本 " + APP_VERSION].filter(Boolean).join("｜") }),
+    el("button", { class: "btn wide", type: "button", text: "關閉", onclick: () => $("menu").close() }));
+  $("menu-body").replaceChildren(...kids);
+  $("menu").showModal();
+}
+
+/* ================= 匯出：先打包，再一包一包按「分享」 ================= */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0 } return t })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0 }
+function dosTime(ms) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", hour: "numeric", minute: "numeric", second: "numeric", hour12: false }).formatToParts(new Date(ms)).map(x => [x.type, +x.value]));
+  const h = p.hour === 24 ? 0 : p.hour;
+  return { time: (h << 11) | (p.minute << 5) | (p.second >> 1), date: ((p.year - 1980) << 9) | (p.month << 5) | p.day };
+}
+async function buildZip(files) {   // files: [{name, data: Blob|Uint8Array|string}]，不壓縮
+  const enc = new TextEncoder(), parts = [], central = [];
+  let offset = 0;
+  const dt = dosTime(Date.now());
+  for (const f of files) {
+    const name = enc.encode(f.name);
+    let bytes;
+    if (typeof f.data === "string") bytes = enc.encode(f.data);
+    else if (f.data instanceof Uint8Array) bytes = f.data;
+    else bytes = new Uint8Array(await f.data.arrayBuffer());
+    const crc = crc32(bytes), size = bytes.length;
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, dt.time, true); lh.setUint16(12, dt.date, true); lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true);
+    lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(lh.buffer, name, f.data instanceof Blob ? f.data : bytes);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, dt.time, true); ch.setUint16(14, dt.date, true); ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true);
+    ch.setUint16(28, name.length, true); ch.setUint32(42, offset, true);
+    central.push(ch.buffer, name);
+    offset += 30 + name.length + size;
+  }
+  const cdSize = central.reduce((n, p) => n + (p.byteLength || p.length), 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, end.buffer], { type: "application/zip" });
+}
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+function mediaName(p, n) {
+  const si = project.stations.findIndex(s => s.id === p.stationId), st = stamp(p.t);
+  const lens = p.lens ? "_" + p.lens.focal + "mm" : "";
+  return (p.kind === "audio" ? "audio/" : "photos/") + String(si + 1).padStart(2, "0") + "_" + (p.stationId || "x") + "_" + (p.itemId || "站") + "_" + st.date + "-" + st.time + lens + "_" + n + extOf(p);
+}
+function reportHTML(names) {
+  const S = project.stations;
+  const gpsLink = g => g ? ' <a href="' + esc(mapURL(g)) + '">📍 ' + esc(g.lat + ", " + g.lon) + "（±" + esc(g.acc) + " m）</a>" : "";
+  const block = list => {
+    if (!list.length) return "";
+    let h = "";
+    const ph = list.filter(p => p.kind !== "audio"), au = list.filter(p => p.kind === "audio");
+    if (ph.length) h += '<div class="pics">' + ph.map(p => '<figure><a href="' + esc(names[p.id]) + '"><img src="' + esc(names[p.id]) + '" loading="lazy"></a><figcaption>' + esc(fmtTime(p.t)) + (p.lens ? "｜" + esc(p.lens.focal + "mm " + p.lens.sensor + " " + p.lens.aspect) : "") + (p.heading ? "｜朝向 " + esc(p.heading.deg) + "°（" + esc(dirName(p.heading.deg)) + "）" : "") + gpsLink(p.gps) + "</figcaption></figure>").join("") + "</div>";
+    if (au.length) h += au.map(p => '<div class="aud">🎙 ' + esc(fmtTime(p.t)) + "（" + esc(fmtSec(p.dur || 0)) + "）" + gpsLink(p.gps) + '<br><audio controls preload="none" src="' + esc(names[p.id]) + '"></audio></div>').join("");
+    return h;
+  };
+  const openMust = [];
+  for (const s of S) for (const i of s.items) if (i.must && !isDone(i.id)) openMust.push(s.short + "：" + i.text);
+  let h = '<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + esc(project.name) + " 場勘報告</title><style>"
+    + "body{font:15px/1.6 -apple-system,'PingFang TC','Noto Sans TC','Microsoft JhengHei',sans-serif;max-width:960px;margin:0 auto;padding:24px 16px;color:#14171A;background:#fff}"
+    + "h1{font-size:24px;margin:0 0 4px}h2{font-size:19px;margin:32px 0 6px;padding-top:12px;border-top:3px solid #14171A}"
+    + ".m{color:#5E6670;font-size:13px}.v{background:#F4F3EF;border-radius:8px;padding:8px 10px;margin:8px 0;font-size:14px}"
+    + "table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0}th,td{border-bottom:1px solid #DCDAD3;padding:6px 8px;text-align:left}th{background:#14171A;color:#fff}"
+    + "ul{padding-left:0;list-style:none}li{margin:6px 0;padding-left:26px;position:relative}li::before{content:'☐';position:absolute;left:0}li.d::before{content:'☑'}"
+    + ".must{background:#FFD23F;font-size:11px;font-weight:700;border-radius:4px;padding:0 5px;margin-right:6px}.n{white-space:pre-wrap;background:#FFF8DC;border-left:3px solid #FFD23F;padding:4px 8px;margin:4px 0;font-size:14px}"
+    + ".pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:6px 0}figure{margin:0}img{width:100%;border-radius:6px;display:block}figcaption,.aud{font-size:12px;color:#5E6670}.aud{margin:6px 0}a{color:inherit}"
+    + "</style></head><body>";
+  h += "<h1>" + esc(project.name) + " 場勘報告</h1><div class='m'>" + esc(project.subtitle) + "</div><div class='m'>匯出時間 " + esc(fmtDateTime(Date.now())) + "｜照片 " + photos().length + " 張｜錄音 " + audios().length + " 段</div>";
+  const rows = S.filter(s => log.visits[s.id]).map(s => { const v = log.visits[s.id], p = prevLeave(s); return "<tr><td>" + esc(s.short) + "</td><td>" + (v.arrive ? esc(fmtTime(v.arrive.t)) : "") + "</td><td>" + (v.leave ? esc(fmtTime(v.leave.t)) : "") + "</td><td>" + (v.arrive && v.leave && v.leave.t >= v.arrive.t ? esc(fmtDur(v.leave.t - v.arrive.t)) : "") + "</td><td>" + (v.arrive && p ? esc("從" + p.short + " " + fmtDur(v.arrive.t - p.t)) : "") + "</td></tr>" });
+  if (rows.length) h += "<h2>實測時間</h2><table><tr><th>站</th><th>到</th><th>離</th><th>停留</th><th>移動</th></tr>" + rows.join("") + "</table>";
+  if (openMust.length) h += "<h2>還沒完成的必做（" + openMust.length + "）</h2><ul>" + openMust.map(t => "<li>" + esc(t) + "</li>").join("") + "</ul>";
+  for (const s of S) {
+    const v = log.visits[s.id] || {};
+    h += "<h2>" + esc(s.title) + "</h2>" + (s.scout ? "<div><b>場勘</b> " + esc(s.scout) + "</div>" : "") + (s.shoot ? "<div><b>正式</b> " + esc(s.shoot) + "</div>" : "");
+    const vv = [];
+    if (v.arrive) vv.push("到 " + esc(fmtTime(v.arrive.t)) + gpsLink(v.arrive.gps));
+    if (v.leave) vv.push("離 " + esc(fmtTime(v.leave.t)) + gpsLink(v.leave.gps));
+    const sum = visitSummary(s); if (sum) vv.push(esc(sum));
+    if (vv.length) h += "<div class='v'>" + vv.join("<br>") + "</div>";
+    h += "<ul>";
+    for (const it of itemsOf(s)) {
+      const r = log.items[it.id] || {};
+      h += "<li class='" + (r.done ? "d" : "") + "'>" + (it.must ? "<span class='must'>必</span>" : "") + esc(it.text) + (it.custom ? " <span class='m'>（現場加的）</span>" : "") + (r.note ? "<div class='n'>" + esc(r.note) + "</div>" : "") + block(media.filter(p => p.itemId === it.id)) + "</li>";
+    }
+    h += "</ul>";
+    if (log.stationNotes[s.id]) h += "<div class='n'>" + esc(log.stationNotes[s.id]) + "</div>";
+    const known = new Set(itemsOf(s).map(i => i.id));
+    h += block(media.filter(p => p.stationId === s.id && (!p.itemId || !known.has(p.itemId))));   // 含題目已被拿掉的
+  }
+  const orphan = media.filter(p => !S.some(s => s.id === p.stationId));
+  if (orphan.length) h += "<h2>其他照片與錄音</h2>" + block(orphan);
+  return h + "</body></html>";
+}
+let exportParts = [], exporting = false;
+async function prepareExport() {
+  if (exporting) return;
+  exporting = true;
+  $("menu").close();
+  const body = $("export-body");
+  body.replaceChildren(el("h2", { text: "匯出報告＋備份" }), el("p", { class: "muted", text: "打包中…照片多的話要等一下" }));
+  $("export").showModal();
+  try {
+    await flushLog();
+    const names = {}; media.forEach((p, n) => { names[p.id] = mediaName(p, n + 1) });
+    const st = stamp(Date.now()), base = "場勘_" + (project.code || project.id) + "_" + st.date + "-" + st.hm;
+    const data = { app: "scout-tool", version: APP_VERSION, exportedAt: Date.now(), project, log, media: media.map(p => Object.assign({}, p, { thumb: undefined, file: names[p.id] })) };
+    // 分包：每包最多約 100 MB；報告和資料放第 1 包
+    const groups = [[]]; let cur = 0;
+    for (const p of media) { if (cur + (p.size || 0) > PART_BYTES && groups[groups.length - 1].length) { groups.push([]); cur = 0 } groups[groups.length - 1].push(p); cur += p.size || 0 }
+    exportParts = []; let missing = 0;
+    for (let gi = 0; gi < groups.length; gi++) {
+      const files = gi === 0 ? [{ name: "報告.html", data: reportHTML(names) }, { name: "data.json", data: JSON.stringify(data, null, 1) }] : [];
+      for (const p of groups[gi]) { let b = null; try { b = await dbGet("blobs", p.id) } catch (e) {} if (b) files.push({ name: names[p.id], data: b }); else missing++ }
+      const zip = await buildZip(files);
+      exportParts.push({ name: base + (groups.length > 1 ? "_第" + (gi + 1) + "包" : "") + ".zip", blob: zip, shared: false });
+    }
+    renderExport(missing);
+  } catch (e) {
+    body.replaceChildren(el("h2", { text: "匯出失敗" }), el("p", { text: String(e && e.message || e) }), el("button", { class: "btn wide", type: "button", text: "關閉", onclick: () => $("export").close() }));
+  } finally { exporting = false }
+}
+function renderExport(missing) {
+  const n = exportParts.length, all = exportParts.every(p => p.shared);
+  const kids = [el("h2", { text: "匯出報告＋備份" }),
+    el("p", { class: "muted", text: (n > 1 ? "檔案比較大，分成 " + n + " 包，每一包都要按一次。" : "") + "建議選「儲存到檔案」或 AirDrop。" + (missing ? "（有 " + missing + " 個檔案讀不到）" : "") })];
+  exportParts.forEach((p, i) => kids.push(el("button", { class: "btn wide" + (p.shared ? "" : " primary"), type: "button", text: (p.shared ? "✓ 已分享 " : "分享 ") + (n > 1 ? "第 " + (i + 1) + " 包" : "ZIP") + "（" + Math.max(0.1, Math.round(p.blob.size / 1e5) / 10) + " MB）", onclick: () => sharePart(p) })));
+  if (all) kids.push(el("p", { class: "muted", text: "全部都分享出去了，已記為備份完成。" }));
+  kids.push(el("button", { class: "btn wide", type: "button", text: "關閉", onclick: () => { $("export").close() } }));
+  $("export-body").replaceChildren(...kids);
+}
+async function sharePart(p) {   // 在點擊裡直接分享，不會超過 Safari 的時間限制
+  const file = new File([p.blob], p.name, { type: "application/zip" });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: p.name }); p.shared = true }
+    catch (e) { toast(e && e.name === "AbortError" ? "取消了，這包還沒備份" : "分享失敗（" + (e && e.name || e) + "），這包還沒備份", 4000) }
+  } else {
+    const a = el("a", { href: URL.createObjectURL(file), download: p.name });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 120000);
+    await new Promise(r => setTimeout(r, 1200));
+    if (confirm("「" + p.name + "」有存下來嗎？")) p.shared = true;
+  }
+  if (exportParts.length && exportParts.every(x => x.shared)) { log.lastExport = Date.now(); saveLog(true); renderTop() }
+  renderExport(0);
+}
+
+/* ================= 相機設定面板 ================= */
+async function openCamSettings() {
+  const box = $("cam-set");
+  if (!box.hidden) { box.hidden = true; return }
+  let cams = [];
+  try { cams = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === "videoinput") } catch (e) {}
+  const opt = (list, cur, label, onpick) => el("div", { class: "opts" }, list.map(x => el("button", { type: "button", "aria-pressed": x.v === cur ? "true" : "false", text: x.t, onclick: () => { onpick(x.v); openCamSettings().then(openCamSettings) } })));
+  const calib = el("input", { type: "range", min: "-20", max: "20", step: "1", value: String(cp.calib) });
+  const calibLab = el("div", { class: "note", text: "畫面寬度校正 " + (cp.calib > 0 ? "+" : "") + cp.calib + "%" });
+  calib.addEventListener("input", () => { cp.calib = +calib.value; saveCam(); calibLab.textContent = "畫面寬度校正 " + (cp.calib > 0 ? "+" : "") + cp.calib + "%"; layoutCam() });
+  box.replaceChildren(
+    el("h3", { text: "機身（感光元件）" }),
+    opt(SENSORS.map(s => ({ v: s.id, t: s.name + "（" + s.note + "）" })), cp.sensor, "", v => { cp.sensor = v; saveCam(); renderCamControls(); applyZoom() }),
+    el("h3", { text: "畫幅" }),
+    opt(ASPECTS.map(a => ({ v: a.id, t: a.name })), cp.aspect, "", v => { cp.aspect = v; saveCam(); renderCamControls(); applyZoom() }),
+    el("h3", { text: "手機鏡頭" }),
+    cams.length > 1 ? opt([{ v: "", t: "自動" }].concat(cams.map((c, i) => ({ v: c.deviceId, t: c.label || "鏡頭 " + (i + 1) }))), cp.deviceId, "", async v => { cp.deviceId = v; saveCam(); await restartStream() }) : el("div", { class: "note", text: "只找到一顆鏡頭" },),
+    el("div", { class: "note", text: "手機鏡頭等效焦段（自動判斷：" + ((cam && cam.baseGuess) || 26) + "mm）" }),
+    opt([{ v: 0, t: "自動" }].concat(BASES.map(b => ({ v: b, t: b + "mm" }))), cp.base, "", v => { cp.base = v; saveCam(); applyZoom() }),
+    calibLab, calib,
+    el("div", { class: "note", text: "要更準：在同一個位置用真的攝影機拍一張，調「畫面寬度校正」讓框的左右邊跟攝影機畫面對齊。超廣角（14–20mm）要選手機的超廣角鏡頭才框得到。" }),
+    el("button", { class: "cam-pill", type: "button", text: "關閉設定", onclick: () => { box.hidden = true } }));
+  box.hidden = false;
+}
+async function restartStream() {
+  if (!cam) return;
+  if (cam.stream) cam.stream.getTracks().forEach(t => t.stop());
+  cam.zoom = 1; cam.geom = null;
+  const msg = $("cam-msg"); msg.hidden = false; msg.textContent = "切換鏡頭中…";
+  try {
+    const stream = await startStream();
+    if (!camOpen) { stream.getTracks().forEach(t => t.stop()); return }
+    cam.stream = stream; cam.track = stream.getVideoTracks()[0]; cam.baseGuess = guessBase(cam.track.label);
+    const v = $("cam-video"); v.srcObject = stream; await v.play().catch(() => {});
+    await new Promise(r => { if (v.videoWidth) r(); else v.addEventListener("loadedmetadata", r, { once: true }); setTimeout(r, 3000) });
+    msg.hidden = true; await applyZoom();
+  } catch (e) { msg.textContent = "開不了這顆鏡頭（" + (e && e.name || e) + "）" }
+}
+
+/* ================= 事件 ================= */
+$("b-menu").addEventListener("click", openMenu);
+$("b-compass").addEventListener("click", openCompass);
+$("b-prev").addEventListener("click", () => goTo(idx - 1));
+$("b-next").addEventListener("click", () => goTo(idx + 1));
+$("b-cam").addEventListener("click", () => openCamera({ sid: station().id, itemId: null }));
+$("b-rec").addEventListener("click", () => toggleRec({ sid: station().id, itemId: null }));
+$("rec-stop").addEventListener("click", () => stopRec());
+$("uns-retry").addEventListener("click", retryUnsaved);
+$("uns-share").addEventListener("click", shareUnsaved);
+$("cam-done").addEventListener("click", closeCamera);
+$("cam-shutter").addEventListener("click", shoot);
+$("cam-sys").addEventListener("click", () => { const t = cam && cam.target; if (t) systemCamera(t) });
+$("cam-fmt").addEventListener("click", openCamSettings);
+$("cam-setbtn").addEventListener("click", openCamSettings);
+$("cam-calib").addEventListener("click", () => sunCalibrate("把太陽放在框的正中間（九宮格中心），拿法跟拍照時一樣。"));
+$("cam-video").addEventListener("resize", () => { if (camOpen) applyZoom() });   // 轉向後影像長寬對調，重算框和變焦
+$("w-import").addEventListener("click", () => $("f-import").click());
+$("w-paste-go").addEventListener("click", () => importProjectText($("w-paste").value));
+$("f-import").addEventListener("change", async () => {
+  const f = $("f-import").files[0]; if (!f) return;
+  try { await importProjectText(await f.text()) } finally { $("f-import").value = "" }
+});
+for (const d of ["menu", "viewer", "compass", "export"]) $(d).addEventListener("click", e => { if (e.target === $(d)) $(d).close() });
+$("compass").addEventListener("close", () => clearInterval(compassTimer));
+window.addEventListener("resize", () => { if (camOpen) setTimeout(layoutCam, 120) });
+document.addEventListener("pointerdown", () => { lastActivity = Date.now() }, { capture: true });
+document.addEventListener("input", () => { lastActivity = Date.now() }, { capture: true });
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState === "hidden") {
+    flushLog();
+    if (rec) { recCutByHide = true; stopRec() }   // iPhone 切到背景會停麥克風：先把錄到的存起來
+    return;
+  }
+  if (recCutByHide) { recCutByHide = false; setTimeout(() => toast("剛剛螢幕關掉／切出去，錄音已停止並存好；要繼續請再按 🎙", 4500), 600) }
+  if (!project) return;
+  try { await dbGet("projects", project.id) } catch (e) {}   // 回來時先測一下資料庫連線（斷了會自動重連）
+  if (dirty) flushLog();
+  if (camOpen && cam && cam.track && cam.track.readyState === "ended") restartStream();
+  const j = autoJumpTarget(Date.now(), false);
+  if (j >= 0) { goTo(j); toast("依時間跳到：" + project.stations[j].short) }
+});
+window.addEventListener("pagehide", () => { flushLog(); if (rec) stopRec() });
+// iOS 每次開 App 都要在點擊裡重新要一次指南針（同意過就不會再跳視窗）
+document.addEventListener("click", () => { if (compassWanted && !compassOn) enableCompass(true) }, { capture: true });
+
+(async function start() {
+  compassWanted = lsGet("scout-compass") === "1";
+  if (lsGet("scout-night") === "1") document.documentElement.classList.add("night");
+  try { idb = await openDB(); await loadAll() }
+  catch (e) { document.body.replaceChildren(el("div", { class: "welcome" }, el("h1", { text: "場勘" }), el("p", { text: "打不開手機裡的資料（" + (e && e.message || e) + "）。請用 Safari 打開、不要用無痕模式；還是不行就把 App 關掉重開。" }))); return }
+  if ("serviceWorker" in navigator && location.protocol !== "file:") navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
